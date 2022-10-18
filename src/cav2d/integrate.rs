@@ -1,68 +1,53 @@
-use peroxide::{fuga::{integrate, Integral::G10K21, StableFn}, prelude::{ADFn, AD}};
+use peroxide::{fuga::{integrate, Integral::G10K21, StableFn}, prelude::{ADFn, AD::{self, AD0, AD1}}};
 
-pub fn cavs_interval<A, B> (
-    f: ADFn<A>,
-    c: ADFn<B>,
+pub fn cavs_interval(
+    f: impl Fn(AD) -> AD,
+    c: impl Fn(AD) -> AD,
     interval: (f64, f64),
     tol: f64,
-) -> f64 where
-    A: Fn(AD) -> AD + Clone,
-    B: Fn(AD) -> AD + Clone,
-{
-    let g = ADFn::new(|x: AD|
-        x - c.call_stable(f.call_stable(x))
-    );
-
-    let dg = g.grad();
-
+) -> f64 {
+    let g = |x| x - c(f(x));
 
     integrate(
-        |x: f64| f.call_stable(x) * dg.call_stable(x),
+        |x: f64| f(AD0(x)).x() * g(AD1(x, 1.0)).dx(),
         interval,
         G10K21(tol),
     )
 }
 
-pub fn cavr_interval<A, B>(
-    f: ADFn<A>,
-    h: ADFn<B>,
-    interval: (f64, f64),
-    tol: f64,
-) -> f64 where
-    A: Fn(AD) -> AD + Clone,
-    B: Fn(AD) -> AD + Clone,
-{
-    integrate(
-        |x: f64| f.call_stable(h.call_stable(x)),
-        interval,
-        G10K21(tol),
-    )
-}
-
-pub fn rs_interval<A, B>(
-    f: ADFn<A>,
-    g: ADFn<B>,
-    interval: (f64, f64),
-    tol: f64,
-) -> f64 where
-    A: Fn(AD) -> AD + Clone,
-    B: Fn(AD) -> AD + Clone,
-{
-    let dg = g.grad();
-    r_interval(
-        ADFn::new(|x| f.call_stable(x) * dg.call_stable(x)),
-        interval,
-        tol,
-    )
-}
-
-pub fn r_interval<A: Fn(AD) -> AD>(
-    f: ADFn<A>,
+pub fn cavr_interval(
+    f: impl Fn(AD) -> AD,
+    h: impl Fn(AD) -> AD,
     interval: (f64, f64),
     tol: f64,
 ) -> f64 {
     integrate(
-        |x| f.call_stable(x),
+        |x: f64| f(h(AD0(x))).x(),
+        interval,
+        G10K21(tol),
+    )
+}
+
+pub fn rs_interval(
+    f: impl Fn(AD) -> AD,
+    g: impl Fn(AD) -> AD,
+    interval: (f64, f64),
+    tol: f64,
+) -> f64 {
+    integrate(
+        |x: f64| f(AD0(x)).x() * g(AD1(x, 1.0)).dx(),
+        interval,
+        G10K21(tol),
+    )
+}
+
+pub fn r_interval<A: Fn(AD) -> AD>(
+    f: impl Fn(AD) -> AD,
+    interval: (f64, f64),
+    tol: f64,
+) -> f64 {
+    integrate(
+        |x| f(AD0(x)).x(),
         interval,
         G10K21(tol),
     )

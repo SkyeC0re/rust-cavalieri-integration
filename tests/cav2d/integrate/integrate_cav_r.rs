@@ -1,12 +1,12 @@
 use approx::assert_abs_diff_eq;
 use peroxide::prelude::{AD::{AD0, self}, ADFn, linspace};
-use rust_cavalieri_integration::cav2d::integrate::cavs_interval;
+use cavint::cav2d::integrate::cavs_interval;
 
 #[test]
 fn test_constant() {
     let val = cavs_interval(
-        ADFn::new(|_| AD0(5.)),
-        ADFn::new(|_| AD0(0.)),
+        |_| AD0(5.),
+        |_| AD0(0.),
         (5., 0.),
         1e-9,
     );
@@ -17,8 +17,8 @@ fn test_constant() {
 #[test]
 fn test_simple() {
     let val = cavs_interval(
-        ADFn::new(|x: AD| x + AD0(2.)),
-        ADFn::new(|y: AD| -y),
+        |x: AD| x + AD0(2.),
+        |y: AD| -y,
         (0., 3.),
         1e-9,
     );

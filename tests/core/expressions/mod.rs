@@ -1,5 +1,5 @@
 use peroxide::prelude::AD::AD0;
-use rust_cavalieri_integration::core::parsing::parse_expr;
+use cavint::core::parsing::parse_expr;
 
 mod basic_expressions;
 
