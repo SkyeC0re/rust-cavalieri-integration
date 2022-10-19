@@ -34,7 +34,7 @@ impl From<mexprp::ParseError> for ParseError {
 }
 
 #[derive(Debug, Error)]
-pub enum MonotoneSplitError {
+pub enum Display2DError {
 	#[error("Maximum allowed bisections exceeded")]
 	MaxHintBisectionsExceeded,
 
@@ -43,10 +43,13 @@ pub enum MonotoneSplitError {
 
     #[error("Non monotone region found after root detection.")]
     NonMonotone,
+
+    #[error("BadInput: {0}")]
+    BadInput(String),
 }
 
-impl From<RootError> for MonotoneSplitError {
+impl From<RootError> for Display2DError {
     fn from(re: RootError) -> Self {
-        MonotoneSplitError::RootError(format!("{}", re))
+        Display2DError::RootError(format!("{}", re))
     }
 }

@@ -2,26 +2,33 @@ use std::{cmp::{max_by, min_by, Ordering}, borrow::Borrow};
 
 use peroxide::{prelude::{AD::{self, AD0, AD1, AD2}, false_position, cubic_spline, Spline}, fuga::{RootFind, RootFinder}};
 
-use crate::{core::{helpers::{Signed, Sign}}, errors::MonotoneSplitError};
+use crate::{core::{helpers::{Signed, Sign}}, errors::Display2DError};
 
 struct Interval {
     pub a: f64,
     pub b: f64,
 }
 
-pub struct CavIntConfig {
+pub struct DisplayConfig {
     pub make_cav: bool,
     pub make_rs: bool,
     pub make_g: bool,
     pub make_dg: bool,
     pub compute_integ: bool,
-    pub x_res_gen: Box<dyn FnMut(f64, f64) -> Vec<f64>>,
-    pub y_res_gen: Box<dyn FnMut(f64, f64) -> Vec<f64>>,
+    pub x_res_gen: Box<dyn Fn(f64, f64) -> Vec<f64>>,
+    pub y_res_gen: Box<dyn Fn(f64, f64) -> Vec<f64>>,
+    pub max_rf_iters: usize,
+    pub tol: f64,
 }
 
-pub struct CavInterval {
+pub struct CavDisplay {
     pub a: f64,
     pub b: f64,
+    pub xv: Option<Vec<f64>>,
+    pub cav_grid: Option<Vec<Vec<f64>>>,
+    pub gv: Option<Vec<f64>>,
+    pub dgv: Option<Vec<f64>>,
+    pub integ_value: Option<f64>,
 }
 
 pub struct TRegion {
@@ -31,31 +38,77 @@ pub struct TRegion {
     pub xv: Vec<f64>,
 }
 
-pub fn gen_integ_interval_cav(
+pub fn gen_display_grid_cav(
+    f: impl Fn(AD) -> AD,
+    c: impl Fn(AD) -> AD,
+    xv: &[f64],
+    yrv: &[f64],
+) -> Result<Vec<Vec<f64>>, Display2DError> {
+    if yrv.len() < 2 {
+        return Err(Display2DError::BadInput("Expected at least 2 point in the y resolution vector.".to_string()));
+    }
+    if yrv[0] != 0f64 {
+        return Err(Display2DError::BadInput(format!("Expected y ratio to start at 0.0, but found {}", yrv[0])));
+    }
+    if yrv[yrv.len() - 1] != 1f64 {
+        return Err(Display2DError::BadInput(format!("Expected y ratio to end at 1.0, but found {}", yrv[yrv.len() - 1])));
+    }
+
+    let c_0 = c(AD0(0f64)).x();
+    let c = |y: f64| c(AD0(y)).x() - c_0;
+    let f = |x: f64| f(AD0(x)).x();
+
+    let g = |x: f64| x - c(f(x));
+    let xrv: Vec<f64> = xv
+        .into_iter()
+        .copied()
+        .map(|x| g(x))
+        .collect();
+
+    if !is_strictly_monotone(&xrv[..]) {
+        return Err(Display2DError::NonMonotone);
+    }
+
+    Ok(
+        yrv
+            .into_iter()
+            .copied()
+            .map(|yr| xrv
+                .iter()
+                .zip(xv.into_iter())
+                .map(|(&xr, &x)| xr + c(yr * f(x)))
+                .collect::<Vec<_>>()
+            )
+            .collect()
+    )
+}
+
+pub fn gen_display_interval_cav(
     f: impl Fn(AD) -> AD,
     c: impl Fn(AD) -> AD,
     a: f64,
     b: f64,
-    cfg: CavIntConfig,
-) -> CavInterval {
+    cfg: DisplayConfig,
+) -> Result<CavDisplay, Display2DError> {
+    let g = |x: AD| x - f(c(x));
+    let xv = (cfg.x_res_gen)(a, b);
+    let tr_roots = split_translational(&f, g, &xv[..], cfg.tol, cfg.max_rf_iters)?;
     todo!()
+    
 }
+
+
 
 
 pub fn gen_func_interval(
     f: impl Fn(AD) -> AD,
-    a: f64,
-    b: f64,
-    x_res_gen: impl Fn(f64, f64) -> Vec<f64>,
-) -> (Vec<f64>, Vec<f64>) {
-    let xv = x_res_gen(a, b);
-
+    xv: &[f64],
+) -> Vec<f64> {
     let yv = xv
-    .iter()
+    .into_iter()
     .map(|x| f(AD0(*x)).x())
     .collect();
-   
-    (xv, yv)
+    yv
 }
 
 pub fn is_monotic_saddle(
@@ -73,27 +126,24 @@ pub fn is_monotic_saddle(
 
 pub fn find_monotone_splits(
     f: impl Fn(AD) -> AD,
-    a: f64,
-    b: f64,
-    x_res_gen: impl Fn(f64, f64) -> Vec<f64>,
+    xv: &[f64],
     tol: f64,
-    max_hint_bisections: usize,
     max_rf_iters: usize,
-) -> Result<Vec<f64>, MonotoneSplitError> {
-    let mut xv = x_res_gen(a, b);
+) -> Result<Vec<f64>, Display2DError> {
     let xv_len = xv.len();
-    if xv_len <= 2 {
-        return Ok(vec![]);
-    }
+    if xv_len < 2 {
+        return Ok(vec![])
+    };
+    let mut xv: Vec<f64> = xv
+        .into_iter()
+        .copied()
+        .collect();
+    let a  = xv[0];
+    let b = xv[xv_len - 1];
 
     let x_sign = (b-a).sign_val();
-    xv[0] = max_by(xv[0], xv[0] + x_sign * tol, |v1, v2| 
-        (x_sign * *v1).total_cmp(&(x_sign * *v2)) 
-    );
-
-    xv[xv_len - 1] = min_by(xv[0], xv[0] - x_sign * tol, |v1, v2| 
-        (x_sign * *v1).total_cmp(&(x_sign * *v2)) 
-    );
+    xv[0] = xv[0] + x_sign * tol;
+    xv[xv_len - 1] = xv[xv_len - 1] - x_sign * tol;
 
     let mut dfv: Vec<(f64, f64)> = xv
     .iter()
@@ -145,22 +195,25 @@ pub fn is_strictly_monotone(v: &[f64]) -> bool {
 pub fn split_translational(
     f: impl Fn(AD) -> AD,
     g: impl Fn(AD) -> AD,
-    a: f64,
-    b: f64,
-    x_res_gen: impl Fn(f64, f64) -> Vec<f64>,
+    xv: &[f64],
     tol: f64,
-    max_hint_bisections: usize,
     max_rf_iters: usize,
-) -> Result<Vec<TRegion>, MonotoneSplitError> {
+) -> Result<Vec<f64>, Display2DError> {
+    if xv.len() < 2 {
+        return Ok(vec![]);
+    }
+    let a = xv[0];
+    let b = xv[xv.len() - 1];
     let x_sign = (b-a).sign_val();
-    let f_roots = find_monotone_splits(&f, a, b, &x_res_gen,
-        tol, max_hint_bisections, max_rf_iters)?;
-    let g_roots = find_monotone_splits(&f, a, b, &x_res_gen,
-        tol, max_hint_bisections, max_rf_iters)?;
+    let f_roots = find_monotone_splits(&f, xv,
+        tol, max_rf_iters)?;
+    let g_roots = find_monotone_splits(&f, xv,
+        tol, max_rf_iters)?;
 
     let mut merged_roots: Vec<f64> = f_roots
     .into_iter()
     .chain(g_roots.into_iter())
+    .filter(|r| (r - a).abs() > tol && (b - r).abs() > tol)
     .collect();
 
     merged_roots.sort_by(|a, b| {
@@ -175,7 +228,7 @@ pub fn split_translational(
     });
 
     // Merge roots if they overlap within `tol` precision.
-    let roots = if merged_roots.len() > 1 {
+    let mut roots = if merged_roots.len() > 1 {
         let mut li = 0;
         let mut roots = Vec::with_capacity(merged_roots.len());
         for (i, r) in merged_roots
@@ -192,34 +245,46 @@ pub fn split_translational(
         merged_roots
     };
 
-    let mut t_regions = Vec::with_capacity(roots.len() - 1);
-    for i in 1..roots.len() {
-        let a = roots[i-1];
-        let b = roots[i];
-        let xv = x_res_gen(a, b);
-        let y: Vec<f64> = xv
-            .iter()
-            .map(|x| f(AD0(*x)).x())
-            .collect();
+    Ok(roots)
+}
 
-        if !is_strictly_monotone(&y[..]) {
-            return Err(MonotoneSplitError::NonMonotone)
-        }
+pub fn generate_c(
+    f: impl Fn(AD) -> AD,
+    g: impl Fn(AD) -> AD,
+    a: f64,
+    b: f64,
+    x_res_gen: impl Fn(f64, f64) -> Vec<f64>,
+    tol: f64,
+) -> Result<TRegion, Display2DError> {
+    let mut xv = x_res_gen(a, b);
+    let yv: Vec<f64> = xv
+        .iter()
+        .map(|x| f(AD0(*x)).x())
+        .collect();
 
-        let cy: Vec<f64> = xv
-            .iter()
-            .map(|x| (AD0(*x) - g(AD0(*x))).x())
-            .collect();
-
-        let c = cubic_spline(&y[..], &cy[..]);
-        t_regions.push(
-            TRegion {
-                c: Box::new(move | y: f64 | c.eval(y)),
-                a,
-                b,
-                xv,
-            }
-        );
+    if !is_strictly_monotone(&yv[..]) {
+        return Err(Display2DError::NonMonotone)
     }
-    Ok(t_regions)
+
+    let mut cyv: Vec<f64> = xv
+        .iter()
+        .map(|x| g(AD0(*x)).x())
+        .collect();
+
+    if !is_strictly_monotone(&cyv[..]) {
+        return Err(Display2DError::NonMonotone)
+    }
+
+    cyv.iter_mut()
+    .zip(xv.iter_mut())
+    .for_each(|(cy, x)| *cy = *x - *cy);
+
+    let c = cubic_spline(&yv[..], &cyv[..]);
+    Ok(TRegion {
+        c: Box::new(move | y: f64 | c.eval(y)),
+        a,
+        b,
+        xv,
+    })
+
 }
