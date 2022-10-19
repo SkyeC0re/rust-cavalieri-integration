@@ -1,6 +1,6 @@
 use peroxide::{fuga::{integrate, Integral::G10K21, StableFn}, prelude::{ADFn, AD::{self, AD0, AD1}}};
 
-pub fn cavs_interval(
+pub fn integ_cavs_interval(
     f: impl Fn(AD) -> AD,
     c: impl Fn(AD) -> AD,
     interval: (f64, f64),
@@ -15,7 +15,7 @@ pub fn cavs_interval(
     )
 }
 
-pub fn cavr_interval(
+pub fn integ_cavr_interval(
     f: impl Fn(AD) -> AD,
     h: impl Fn(AD) -> AD,
     interval: (f64, f64),
@@ -28,7 +28,7 @@ pub fn cavr_interval(
     )
 }
 
-pub fn rs_interval(
+pub fn integ_rs_interval(
     f: impl Fn(AD) -> AD,
     g: impl Fn(AD) -> AD,
     interval: (f64, f64),
@@ -41,7 +41,7 @@ pub fn rs_interval(
     )
 }
 
-pub fn r_interval<A: Fn(AD) -> AD>(
+pub fn integ_interval<A: Fn(AD) -> AD>(
     f: impl Fn(AD) -> AD,
     interval: (f64, f64),
     tol: f64,

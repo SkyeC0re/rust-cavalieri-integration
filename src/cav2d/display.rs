@@ -4,16 +4,14 @@ use peroxide::{prelude::{AD::{self, AD0, AD1, AD2}, false_position, cubic_spline
 
 use crate::{core::{helpers::{Signed, Sign}}, errors::Display2DError};
 
+use super::integrate::integ_cavs_interval;
+
 struct Interval {
     pub a: f64,
     pub b: f64,
 }
 
 pub struct DisplayConfig {
-    pub make_cav: bool,
-    pub make_rs: bool,
-    pub make_g: bool,
-    pub make_dg: bool,
     pub compute_integ: bool,
     pub x_res_gen: Box<dyn Fn(f64, f64) -> Vec<f64>>,
     pub y_res_gen: Box<dyn Fn(f64, f64) -> Vec<f64>>,
@@ -24,11 +22,48 @@ pub struct DisplayConfig {
 pub struct CavDisplay {
     pub a: f64,
     pub b: f64,
-    pub xv: Option<Vec<f64>>,
-    pub cav_grid: Option<Vec<Vec<f64>>>,
-    pub gv: Option<Vec<f64>>,
-    pub dgv: Option<Vec<f64>>,
+    pub cav_grid: Vec<Vec<f64>>,
+    pub xv: Vec<f64>,
+    pub dgv: Vec<f64>,
     pub integ_value: Option<f64>,
+}
+
+impl DisplayConfig {
+    pub fn display(
+        &self,
+        f: impl Fn(AD) -> AD,
+        c: impl Fn(AD) -> AD,
+        a: f64,
+        b: f64,
+    ) -> Result<CavDisplay, Display2DError> {
+        let xv = (self.x_res_gen)(a, b);
+        let yrv = (self.y_res_gen)(a, b);
+
+        let g = |x: AD| x - f(c(x));
+
+        let dgv = xv
+        .iter()
+        .copied()
+        .map(|x| g(AD1(x, 1f64)).dx())
+        .collect();
+
+
+        let integ_value = if self.compute_integ {
+            Some(integ_cavs_interval(&f, &c, (a, b), self.tol))
+        } else {
+            None
+        };
+
+        Ok(CavDisplay { 
+            a,
+            b,
+            cav_grid: gen_display_grid_cav(&f, &c, &xv[..], &yrv[..])?,
+            xv,
+            dgv,
+            integ_value,
+        })
+
+    }
 }
 
 pub struct TRegion {
@@ -89,16 +124,18 @@ pub fn gen_display_interval_cav(
     a: f64,
     b: f64,
     cfg: DisplayConfig,
-) -> Result<CavDisplay, Display2DError> {
+) -> Result<Vec<CavDisplay>, Display2DError> {
     let g = |x: AD| x - f(c(x));
     let xv = (cfg.x_res_gen)(a, b);
-    let tr_roots = split_translational(&f, g, &xv[..], cfg.tol, cfg.max_rf_iters)?;
-    todo!()
-    
+    let mut splits = split_translational(&f, g, &xv[..], cfg.tol, cfg.max_rf_iters)?;
+    splits.insert(0, a);
+    splits.push(b);
+    let mut displays = Vec::with_capacity(splits.len() - 1);
+    for i in (1..splits.len()) {
+        displays.push(cfg.display(&f, &c, a, b)?);
+    }
+    Ok(displays)
 }
-
-
-
 
 pub fn gen_func_interval(
     f: impl Fn(AD) -> AD,
