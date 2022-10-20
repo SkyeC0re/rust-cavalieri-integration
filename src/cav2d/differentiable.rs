@@ -1,4 +1,1 @@
-use peroxide::structure::ad::{
-    AD,
-    ADFn,
-};
+use peroxide::structure::ad::{ADFn, AD};

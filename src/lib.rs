@@ -1,16 +1,18 @@
-
-pub mod core;
 pub mod cav2d;
 pub mod cav3d;
-pub mod errors;
+pub mod core;
 pub mod cpython_funcs;
+pub mod errors;
 
 use pyo3::prelude::*;
 
-use cpython_funcs::extension::evaluate_string_expression;
+use cpython_funcs::extension::{eval_expr, display_cav};
+use cav2d::display::CavDisplay;
 
 #[pymodule]
 fn cavint(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(evaluate_string_expression, m)?)?;
+    m.add_class::<CavDisplay>()?;
+    m.add_function(wrap_pyfunction!(eval_expr, m)?)?;
+    m.add_function(wrap_pyfunction!(display_cav, m)?)?;
     Ok(())
 }

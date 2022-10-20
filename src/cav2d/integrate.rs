@@ -1,4 +1,10 @@
-use peroxide::{fuga::{integrate, Integral::G10K21, StableFn}, prelude::{ADFn, AD::{self, AD0, AD1}}};
+use peroxide::{
+    fuga::{integrate, Integral::G10K21, StableFn},
+    prelude::{
+        ADFn,
+        AD::{self, AD0, AD1},
+    },
+};
 
 pub fn integ_cavs_interval(
     f: impl Fn(AD) -> AD,
@@ -21,11 +27,7 @@ pub fn integ_cavr_interval(
     interval: (f64, f64),
     tol: f64,
 ) -> f64 {
-    integrate(
-        |x: f64| f(h(AD0(x))).x(),
-        interval,
-        G10K21(tol),
-    )
+    integrate(|x: f64| f(h(AD0(x))).x(), interval, G10K21(tol))
 }
 
 pub fn integ_rs_interval(
@@ -46,9 +48,5 @@ pub fn integ_interval<A: Fn(AD) -> AD>(
     interval: (f64, f64),
     tol: f64,
 ) -> f64 {
-    integrate(
-        |x| f(AD0(x)).x(),
-        interval,
-        G10K21(tol),
-    )
+    integrate(|x| f(AD0(x)).x(), interval, G10K21(tol))
 }

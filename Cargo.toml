@@ -15,3 +15,4 @@ approx = "0.5.1"
 mexprp = {version = "0.3.0", default-features = false}
 thiserror = "1.0.37"
 pyo3 = { version = "0.17.2", features = ["extension-module"] }
+parking_lot = "0.12.1"

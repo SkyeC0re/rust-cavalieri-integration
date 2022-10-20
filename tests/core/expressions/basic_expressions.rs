@@ -1,5 +1,5 @@
-use peroxide::prelude::AD::{self, AD0};
 use cavint::core::parsing::parse_expr;
+use peroxide::prelude::AD::{self, AD0};
 
 use super::test_expression;
 
@@ -7,11 +7,7 @@ use super::test_expression;
 fn test_empty_fail() {
     let expr = "";
 
-    assert_eq!(
-        parse_expr(expr, "").is_err(),
-        true,
-
-    )
+    assert_eq!(parse_expr(expr, "").is_err(), true,)
 }
 
 #[test]

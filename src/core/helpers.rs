@@ -20,7 +20,7 @@ impl From<Sign> for f64 {
             Sign::POS => 1.0,
             Sign::ZERO => 0.0,
             Sign::NEG => -1.0,
-            Sign::NAN => f64::NAN
+            Sign::NAN => f64::NAN,
         }
     }
 }
@@ -28,7 +28,7 @@ impl From<Sign> for f64 {
 impl Signed for f64 {
     fn sign(&self) -> Sign {
         if self.is_nan() {
-            return Sign::NAN
+            return Sign::NAN;
         }
         if self.is_sign_positive() {
             return Sign::POS;
@@ -36,6 +36,6 @@ impl Signed for f64 {
         if self.is_sign_negative() {
             return Sign::NEG;
         }
-        Sign::ZERO    
+        Sign::ZERO
     }
 }
