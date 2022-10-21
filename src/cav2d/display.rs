@@ -7,13 +7,13 @@ use peroxide::{
     fuga::{RootFind, RootFinder},
     prelude::{
         cubic_spline, false_position, linspace, Spline,
-        AD::{self, AD0, AD1, AD2},
     },
 };
 use pyo3::pyclass;
+use roots::{find_root_brent, SimpleConvergency};
 
 use crate::{
-    core::helpers::{Sign, Signed},
+    core::{helpers::{Sign, Signed}, differentiable::{AD, ZERO}},
     errors::Display2DError,
 };
 
@@ -73,10 +73,11 @@ impl DisplayConfig {
 
         let g = |x: AD| x - f(c(x));
 
-        let dgv = xv.iter().copied().map(|x| g(AD1(x, 1f64)).dx()).collect();
+        let dgv = xv.iter().copied().map(|x| g(AD(x, 1f64)).0).collect();
 
         let integ_value = if self.compute_integ {
-            Some(integ_cavs_interval(&f, &c, (a, b), self.tol))
+            //Some(integ_cavs_interval(&f, &c, (a, b), self.tol))
+            None
         } else {
             None
         };
@@ -123,9 +124,9 @@ pub fn gen_display_grid_cav(
         )));
     }
 
-    let c_0 = c(AD0(0f64)).x();
-    let c = |y: f64| c(AD0(y)).x() - c_0;
-    let f = |x: f64| f(AD0(x)).x();
+    let c_0 = c(ZERO).0;
+    let c = |y: f64| c(AD(y, 0f64)).0 - c_0;
+    let f = |x: f64| f(AD(x, 0f64)).0;
 
     let g = |x: f64| x - c(f(x));
     let xrv: Vec<f64> = xv.into_iter().copied().map(|x| g(x)).collect();
@@ -166,20 +167,22 @@ pub fn gen_display_interval_cav(
 }
 
 pub fn gen_func_interval(f: impl Fn(AD) -> AD, xv: &[f64]) -> Vec<f64> {
-    let yv = xv.into_iter().map(|x| f(AD0(*x)).x()).collect();
+    let yv = xv.into_iter().map(|x| f(AD(*x, 0f64)).0).collect();
     yv
 }
 
 pub fn is_monotic_saddle(f: impl Fn(AD) -> AD, x: f64, tol: f64) -> bool {
-    let ad = f(AD2(x, 1.0, 0.0));
-    if ad.dx() < tol && ad.ddx() < tol {
+    let x1 = f(AD(x - tol, 1f64));
+    let x2 = f(AD(x + tol, 1f64));
+
+    if  x1.1.sign_val() == x2.1.sign_val() && x1.1.sign_val() == (x2.0 - x1.0).sign_val() {
         true
     } else {
         false
     }
 }
 
-pub fn find_monotone_splits(
+pub fn split_strictly_monotone(
     f: impl Fn(AD) -> AD,
     xv: &[f64],
     tol: f64,
@@ -197,10 +200,10 @@ pub fn find_monotone_splits(
     xv[0] = xv[0] + x_sign * tol;
     xv[xv_len - 1] = xv[xv_len - 1] - x_sign * tol;
 
-    let mut dfv: Vec<(f64, f64)> = xv
+    let mut dfv: Vec<AD> = xv
         .iter()
-        .map(|x| match f(AD1(*x, 1f64)) {
-            ad => (ad.x(), ad.dx()),
+        .map(|x| {
+            f(AD(*x, 1f64))
         })
         .collect();
     let mut roots = vec![];
@@ -217,7 +220,11 @@ pub fn find_monotone_splits(
         {
             dfv[i].0
         } else if ldfs != rdfs {
-            false_position(&f, (dfv[i - 1].0, dfv[i].0), max_rf_iters, tol)?
+            let r = find_root_brent(dfv[i - 1].0, dfv[i].0, |x| f(AD(x, 0f64)).0 , &mut SimpleConvergency {
+                eps: tol,
+                max_iter: max_rf_iters,
+            })?;
+            r
         } else {
             i += 1;
             continue;
@@ -227,12 +234,12 @@ pub fn find_monotone_splits(
         if x_sign * (rfwd - xv[i]) > 0f64 {
             i += 1
         }
+        //println!("rfwd: {}", rfwd);
         if rfwd != xv[i - 1] {
             xv[i - 1] = rfwd;
-            dfv[i - 1] = match f(AD1(rfwd, 1f64)) {
-                ad => (ad.x(), ad.dx()),
-            }
+            dfv[i - 1] = f(AD(rfwd, 1f64));
         }
+        //print!("root: {}", root);
         roots.push(root);
     }
 
@@ -266,8 +273,8 @@ pub fn split_translational(
     let a = xv[0];
     let b = xv[xv.len() - 1];
     let x_sign = (b - a).sign_val();
-    let f_roots = find_monotone_splits(&f, xv, tol, max_rf_iters)?;
-    let g_roots = find_monotone_splits(&f, xv, tol, max_rf_iters)?;
+    let f_roots = split_strictly_monotone(&f, xv, tol, max_rf_iters)?;
+    let g_roots = split_strictly_monotone(&f, xv, tol, max_rf_iters)?;
 
     let mut merged_roots: Vec<f64> = f_roots
         .into_iter()
@@ -316,13 +323,13 @@ pub fn generate_c(
     tol: f64,
 ) -> Result<TRegion, Display2DError> {
     let mut xv = x_res_gen(a, b);
-    let yv: Vec<f64> = xv.iter().map(|x| f(AD0(*x)).x()).collect();
+    let yv: Vec<f64> = xv.iter().map(|x| f(AD(*x, 0f64)).0).collect();
 
     if !is_strictly_monotone(&yv[..]) {
         return Err(Display2DError::NonMonotone);
     }
 
-    let mut cyv: Vec<f64> = xv.iter().map(|x| g(AD0(*x)).x()).collect();
+    let mut cyv: Vec<f64> = xv.iter().map(|x| g(AD(*x, 0f64)).0).collect();
 
     if !is_strictly_monotone(&cyv[..]) {
         return Err(Display2DError::NonMonotone);

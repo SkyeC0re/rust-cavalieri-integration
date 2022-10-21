@@ -29,7 +29,7 @@ pub enum ParsedFuncError {
     #[error(
         "Wrong amount of input parameters used, got {}, expected {:?}",
         count,
-        expected,
+        expected
     )]
     IncorrectParameters { count: usize, expected: Vec<String> },
 
@@ -69,6 +69,8 @@ impl From<RootError> for Display2DError {
         Display2DError::RootError(format!("{}", re))
     }
 }
+
+impl From<Roo
 
 impl From<Display2DError> for PyErr {
     fn from(e: Display2DError) -> Self {

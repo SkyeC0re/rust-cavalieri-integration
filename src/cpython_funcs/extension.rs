@@ -1,11 +1,10 @@
 use parking_lot::FairMutex;
-use peroxide::prelude::AD::{self, AD0};
-use pyo3::exceptions::PyAssertionError;
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 use pyo3::{wrap_pyfunction, PyErr, PyResult};
 
 use crate::cav2d::display::{gen_display_interval_cav, CavDisplay, DisplayConfig};
+use crate::core::differentiable::AD;
 use crate::{core::parsing::parse_expr, errors::ParsedFuncError};
 
 #[pyfunction]
@@ -25,9 +24,9 @@ pub fn display_cav(f_expr: String, c_expr: String, a: f64, b: f64) -> PyResult<V
     c(&[f(&[AD0(a)])?])?;
 
     let f = FairMutex::new(f);
-    let f = move |x: AD| (f.lock())(&[x]).unwrap_or(AD0(f64::NAN));
+    let f = move |x: AD| (f.lock())(&[x]).unwrap_or(AD(f64::NAN, f64::NAN));
     let c = FairMutex::new(c);
-    let c = move |x: AD| (c.lock())(&[x]).unwrap_or(AD0(f64::NAN));
+    let c = move |x: AD| (c.lock())(&[x]).unwrap_or(AD(f64::NAN, f64::NAN));
 
     Ok(gen_display_interval_cav(
         f,

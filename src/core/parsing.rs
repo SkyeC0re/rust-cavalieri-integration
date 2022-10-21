@@ -3,66 +3,51 @@ use std::{
     f64::consts::{E, PI},
     fmt::Display,
     ops::{Add, Neg},
-    rc::Rc,
 };
 
-use mexprp::{Answer, Calculation, Config, Context, Expression, Func, MathError, Num, Term};
-use peroxide::prelude::{ADVec, ExpLogOps, PowOps, TrigOps, AD};
+use mexprp::{Answer, Calculation, Config, Context, MathError, Num, Term};
 
 use crate::errors::ParsedFuncError;
+
+use super::differentiable::AD;
 
 pub const VALID_VARIABLE_SYMBOLS: &str =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzαβγεζηϝθλμνξρστωψφυ";
 
 pub fn single_var_ad_func<A>(
     func: A,
-) -> impl Fn(&[Term<NumAD>], &Context<NumAD>) -> Calculation<NumAD>
+) -> impl Fn(&[Term<AD>], &Context<AD>) -> Calculation<AD>
 where
-    A: Fn(&AD) -> AD,
+    A: Fn(AD) -> AD,
 {
-    return move |args: &[Term<NumAD>], ctx: &Context<NumAD>| {
+    return move |args: &[Term<AD>], ctx: &Context<AD>| {
         if args.len() != 1 {
             return Err(MathError::IncorrectArguments);
         }
         let x = match args[0].eval_ctx(ctx)? {
-            Answer::Single(x) => x.0,
+            Answer::Single(x) => x,
             Answer::Multiple(_) => return Err(MathError::IncorrectArguments),
         };
 
-        Ok(Answer::Single(func(&x).into()))
+        Ok(Answer::Single(func(x)))
     };
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct NumAD(AD);
-
-impl Display for NumAD {
+impl Display for AD {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl From<AD> for NumAD {
-    fn from(ad: AD) -> Self {
-        Self(ad)
+impl From<AD> for Answer<AD> {
+    fn from(x: AD) -> Self {
+        Answer::Single(x)
     }
 }
 
-impl From<f64> for NumAD {
-    fn from(x: f64) -> Self {
-        AD::from(x).into()
-    }
-}
-
-impl From<NumAD> for Answer<NumAD> {
-    fn from(nad: NumAD) -> Self {
-        Answer::Single(nad)
-    }
-}
-
-impl Num for NumAD {
+impl Num for AD {
     fn from_f64(t: f64, _ctx: &Context<Self>) -> mexprp::Calculation<Self> {
-        Calculation::Ok(Answer::Single(t.into()))
+        Calculation::Ok(Answer::Single(AD::from(t)))
     }
 
     fn from_f64_complex(_t: (f64, f64), _ctx: &Context<Self>) -> mexprp::Calculation<Self> {
@@ -73,83 +58,46 @@ impl Num for NumAD {
     }
 
     fn typename() -> String {
-        "NumAD".to_string()
+        "AD".to_string()
     }
 
     fn add(&self, other: &Self, _ctx: &Context<Self>) -> Calculation<Self> {
-        Ok(NumAD::from(self.0 + other.0).into())
+        Ok((*self + *other).into())
     }
 
     fn sub(&self, other: &Self, _ctx: &Context<Self>) -> Calculation<Self> {
-        Ok(NumAD::from(self.0 - other.0).into())
+        Ok((*self - *other).into())
     }
 
     fn mul(&self, other: &Self, _ctx: &Context<Self>) -> Calculation<Self> {
-        Ok(NumAD::from(self.0 * other.0).into())
+        Ok((*self * *other).into())
     }
 
     fn div(&self, other: &Self, _ctx: &Context<Self>) -> Calculation<Self> {
-        Ok(NumAD::from(self.0 / other.0).into())
+        Ok((*self / *other).into())
     }
 
     fn pow(&self, other: &Self, _ctx: &Context<Self>) -> Calculation<Self> {
-        Ok(NumAD::from(self.0.pow(other.0.clone())).into())
-    }
-
-    fn sqrt(&self, _ctx: &Context<Self>) -> Calculation<Self> {
-        Ok(NumAD::from(self.0.sqrt()).into())
-    }
-
-    fn abs(&self, _ctx: &Context<Self>) -> Calculation<Self> {
-        Ok(NumAD::from(if self.0.x() >= 0.0 {
-            self.clone()
-        } else {
-            self.0.neg().into()
-        })
-        .into())
-    }
-
-    fn sin(&self, ctx: &Context<Self>) -> Calculation<Self> {
-        Ok(NumAD::from(self.0.sin()).into())
-    }
-
-    fn cos(&self, ctx: &Context<Self>) -> Calculation<Self> {
-        Ok(NumAD::from(self.0.cos()).into())
-    }
-
-    fn tan(&self, ctx: &Context<Self>) -> Calculation<Self> {
-        Ok(NumAD::from(self.0.tan()).into())
-    }
-
-    fn asin(&self, ctx: &Context<Self>) -> Calculation<Self> {
-        Ok(NumAD::from(self.0.asin()).into())
-    }
-
-    fn acos(&self, ctx: &Context<Self>) -> Calculation<Self> {
-        Ok(NumAD::from(self.0.acos()).into())
-    }
-
-    fn atan(&self, ctx: &Context<Self>) -> Calculation<Self> {
-        Ok(NumAD::from(self.0.atan()).into())
+        Ok(AD::pow(*self, *other).into())
     }
 }
 
-pub fn standard_context() -> Context<NumAD> {
+pub fn standard_context() -> Context<AD> {
     let cfg = Config {
         implicit_multiplication: true,
         sqrt_both: false,
         ..Default::default()
     };
 
-    let mut context: Context<NumAD> = Context {
+    let mut context: Context<AD> = Context {
         vars: HashMap::new(),
         funcs: HashMap::new(),
         cfg,
     };
 
-    context.set_var("pi", NumAD::from(PI));
-    context.set_var("π", NumAD::from(PI));
-    context.set_var("e", NumAD::from(E));
+    context.set_var("pi", AD::from(PI));
+    context.set_var("π", AD::from(PI));
+    context.set_var("e", AD::from(E));
 
     context.set_func("sin", single_var_ad_func(AD::sin));
     context.set_func("cos", single_var_ad_func(AD::cos));
@@ -166,7 +114,7 @@ pub fn standard_context() -> Context<NumAD> {
     context.set_func("sqrt", single_var_ad_func(AD::sqrt));
     context.set_func(
         "abs",
-        single_var_ad_func(|ad| if ad.x() >= 0.0 { ad.clone() } else { ad.neg() }),
+        single_var_ad_func(AD::abs)
     );
     context.set_func("ln", single_var_ad_func(AD::ln));
 
@@ -176,7 +124,7 @@ pub fn standard_context() -> Context<NumAD> {
 pub fn parse_ctx_expr<'a>(
     expr: &str,
     vars: &str,
-    mut ctx: Context<NumAD>,
+    mut ctx: Context<AD>,
 ) -> Result<impl FnMut(&[AD]) -> Result<AD, ParsedFuncError> + Clone, ParsedFuncError> {
     let mut valid_vars = HashSet::new();
     let mut pars: Vec<String> = Vec::with_capacity(vars.len());
@@ -203,7 +151,7 @@ pub fn parse_ctx_expr<'a>(
             });
         }
 
-        ctx.set_var(&svar, NumAD::from(0f64));
+        ctx.set_var(&svar, AD::from(0f64));
         pars.push(svar);
     }
     let expr = Term::parse_ctx(expr, &ctx)?;
