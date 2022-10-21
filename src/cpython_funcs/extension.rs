@@ -8,11 +8,11 @@ use crate::core::differentiable::AD;
 use crate::{core::parsing::parse_expr, errors::ParsedFuncError};
 
 #[pyfunction]
-pub fn eval_expr(expr: String, vars: String, pars: Vec<f64>) -> PyResult<f64> {
+pub fn eval_expr(expr: String, vars: String, pars: Vec<f64>) -> PyResult<(f64, f64)> {
     let mut f = parse_expr(&expr, vars.as_str())?;
-    let res = f(&pars.into_iter().map(|v| v.into()).collect::<Vec<_>>()[..])?.x();
+    let res = f(&pars.into_iter().map(|v| v.into()).collect::<Vec<_>>()[..])?;
 
-    Ok(res)
+    Ok((res.0, res.1))
 }
 
 #[pyfunction]
@@ -21,7 +21,7 @@ pub fn display_cav(f_expr: String, c_expr: String, a: f64, b: f64) -> PyResult<V
     let mut c = parse_expr(&c_expr, "y")?;
 
     // Ensure expression is valid and operations can be run.
-    c(&[f(&[AD0(a)])?])?;
+    c(&[f(&[AD(a, 0f64)])?])?;
 
     let f = FairMutex::new(f);
     let f = move |x: AD| (f.lock())(&[x]).unwrap_or(AD(f64::NAN, f64::NAN));

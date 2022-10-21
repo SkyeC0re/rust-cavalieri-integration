@@ -3,6 +3,7 @@ use pyo3::{
     exceptions::{PyException, PyRuntimeError},
     PyErr,
 };
+use roots::SearchError;
 use thiserror::Error;
 
 /// An error that can occur during parsing
@@ -70,7 +71,11 @@ impl From<RootError> for Display2DError {
     }
 }
 
-impl From<Roo
+impl From<SearchError> for Display2DError {
+    fn from(se: SearchError) -> Self {
+        Display2DError::RootError(format!("{}", se))
+    }
+}
 
 impl From<Display2DError> for PyErr {
     fn from(e: Display2DError) -> Self {

@@ -45,6 +45,7 @@ impl From<AD> for Answer<AD> {
     }
 }
 
+
 impl Num for AD {
     fn from_f64(t: f64, _ctx: &Context<Self>) -> mexprp::Calculation<Self> {
         Calculation::Ok(Answer::Single(AD::from(t)))
@@ -78,7 +79,12 @@ impl Num for AD {
     }
 
     fn pow(&self, other: &Self, _ctx: &Context<Self>) -> Calculation<Self> {
-        Ok(AD::pow(*self, *other).into())
+        if other.1 == 0f64 && (other.0 as i32) as f64 == other.0  {
+            Ok(AD::powi(*self, other.0 as i32).into())
+        } else {
+            Ok(AD::pow(*self, *other).into())
+        }
+        
     }
 }
 
@@ -170,7 +176,7 @@ pub fn parse_ctx_expr<'a>(
         }
 
         match expr.eval_ctx(&ctx)? {
-            Answer::Single(x) => Ok(x.0),
+            Answer::Single(x) => Ok(x),
             _ => Err(ParsedFuncError::ValueError {
                 err: "Expected singular answer".to_string(),
             }),

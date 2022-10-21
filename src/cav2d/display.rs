@@ -212,35 +212,26 @@ pub fn split_strictly_monotone(
     while i < xv.len() {
         let ldfs = dfv[i - 1].1.sign();
         let rdfs = dfv[i].1.sign();
-        let root = if ldfs == Sign::NAN
-            || (ldfs == Sign::ZERO && !is_monotic_saddle(&f, dfv[i - 1].0, tol))
+        if ldfs == Sign::NAN
+            || (ldfs == Sign::ZERO && !is_monotic_saddle(&f, xv[i - 1], tol))
         {
-            dfv[i - 1].0
-        } else if rdfs == Sign::NAN || (rdfs == Sign::ZERO && !is_monotic_saddle(&f, dfv[i].0, tol))
+            roots.push(dfv[i - 1].0);
+        } else if rdfs == Sign::NAN || (rdfs == Sign::ZERO && !is_monotic_saddle(&f, xv[i], tol))
         {
-            dfv[i].0
+            i += 1;
+            roots.push(dfv[i].0);
+           
         } else if ldfs != rdfs {
-            let r = find_root_brent(dfv[i - 1].0, dfv[i].0, |x| f(AD(x, 0f64)).0 , &mut SimpleConvergency {
+            let r = match find_root_brent(xv[i - 1], xv[i], |x| f(AD(x, 1f64)).1 , &mut SimpleConvergency {
                 eps: tol,
                 max_iter: max_rf_iters,
-            })?;
-            r
-        } else {
-            i += 1;
-            continue;
-        };
-
-        let rfwd = root + x_sign * tol;
-        if x_sign * (rfwd - xv[i]) > 0f64 {
-            i += 1
+            }) {
+                Ok(v) => v,
+                Err(e) => panic!("Error: {:?} x: {:?} FDF: {:?}", e, &xv[i-1..=i], &dfv[i-1..=i]),
+            };
+            roots.push(r);
         }
-        //println!("rfwd: {}", rfwd);
-        if rfwd != xv[i - 1] {
-            xv[i - 1] = rfwd;
-            dfv[i - 1] = f(AD(rfwd, 1f64));
-        }
-        //print!("root: {}", root);
-        roots.push(root);
+        i += 1;
     }
 
     Ok(roots)
@@ -274,7 +265,7 @@ pub fn split_translational(
     let b = xv[xv.len() - 1];
     let x_sign = (b - a).sign_val();
     let f_roots = split_strictly_monotone(&f, xv, tol, max_rf_iters)?;
-    let g_roots = split_strictly_monotone(&f, xv, tol, max_rf_iters)?;
+    let g_roots = split_strictly_monotone(&g, xv, tol, max_rf_iters)?;
 
     let mut merged_roots: Vec<f64> = f_roots
         .into_iter()

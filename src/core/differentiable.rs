@@ -28,28 +28,28 @@ impl From<f64> for AD {
 impl Add<AD> for AD {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
-        AD(self.0 + rhs.0, if self.zdf2(rhs) {0f64} else {self.1 + rhs.1})
+        AD(self.0 + rhs.0, self.1 + rhs.1)
     }
 }
 
 impl Sub<AD> for AD {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self::Output {
-        AD(self.0 - rhs.0, if self.zdf2(rhs) {0f64} else {self.1 - rhs.1})
+        AD(self.0 - rhs.0, self.1 - rhs.1)
     }
 }
 
 impl Neg for AD {
     type Output = Self;
     fn neg(self) -> Self::Output {
-        AD(-self.0, if self.zdf1() {0f64} else {-self.1})
+        AD(-self.0, -self.1)
     }
 }
 
 impl Mul for AD {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
-        AD(self.0 * rhs.0, if self.zdf2(rhs) {0f64} else {self.0 * rhs.1 + self.1 * rhs.0})
+        AD(self.0 * rhs.0, self.0 * rhs.1 + self.1 * rhs.0)
     }
 }
 
@@ -57,80 +57,83 @@ impl Div for AD {
     type Output = Self;
     fn div(self, rhs: Self) -> Self::Output {
     
-        AD(self.0 / rhs.0, if self.zdf2(rhs) {0f64} else {self.1 / rhs.0  - (self.0 * rhs.1) / (rhs.0 * rhs.0)})
+        AD(self.0 / rhs.0, self.1 / rhs.0  - (self.0 * rhs.1) / (rhs.0 * rhs.0))
     }
 }
 
 impl AD {
     pub fn abs(self) -> Self {
-        AD(self.0.abs(), if self.zdf1() {0f64} else {self.1.abs()})
+        AD(self.0.abs(), self.1.abs())
     }
 
     pub fn ln(self) -> Self {
-        AD(self.0.ln(), if self.zdf1() {0f64} else {self.1 / self.0})
+        AD(self.0.ln(), self.1 / self.0)
     }
 
     pub fn sqrt(self) -> Self {
         let rt = self.0.sqrt();
-        AD(rt, if self.zdf1() {0f64} else {self.1 / (2f64 * rt)})
+        AD(rt, self.1 / (2f64 * rt))
     }
 
     pub fn exp(self) -> Self {
         let p = self.0.exp();
-        AD(p, if self.zdf1() {0f64} else {p * self.1})
+        AD(p, p * self.1)
     }
 
     pub fn pow(self, rhs: Self) -> Self {
-        if self.zdf1() {AD(self.0.powf(rhs.0), 0f64)} else {
         (self.ln() * rhs).exp()
-        }
+    }
+
+    pub fn powi(self, n: i32) -> Self {
+        let p = self.0.powi(n-1);
+        AD(self.0 * p, (n as f64) * p * self.1)
     }
 
     pub fn sin(self) -> Self {
-        AD(self.0.sin(), if self.zdf1() {0f64} else {self.0.cos() * self.1})
+        AD(self.0.sin(), self.0.cos() * self.1)
     }
 
     pub fn cos(self) -> Self {
-        AD(self.0.cos(), if self.zdf1() {0f64} else {-self.0.sin() * self.1})
+        AD(self.0.cos(), -self.0.sin() * self.1)
     }
 
     pub fn tan(self) -> Self {
-        AD(self.0.tan(), if self.zdf1() {0f64} else {self.1 / self.0.cos().powi(2)})
+        AD(self.0.tan(), self.1 / self.0.cos().powi(2))
     }
 
     pub fn asin(self) -> Self {
-        AD(self.0.asin(), if self.zdf1() {0f64} else {self.1 / (self.0* self.0 - 1f64).sqrt()})
+        AD(self.0.asin(), self.1 / (self.0* self.0 - 1f64).sqrt())
     }
 
     pub fn acos(self) -> Self {
-        AD(self.0.acos(), if self.zdf1() {0f64} else {-self.1 / (self.0* self.0 - 1f64).sqrt()})
+        AD(self.0.acos(), -self.1 / (self.0* self.0 - 1f64).sqrt())
     }
 
     pub fn atan(self) -> Self {
-        AD(self.0.atan(), if self.zdf1() {0f64} else {self.1 / (self.0* self.0 + 1f64)})
+        AD(self.0.atan(), self.1 / (self.0* self.0 + 1f64))
     }
 
     pub fn sinh(self) -> Self {
-        AD(self.0.sinh(), if self.zdf1() {0f64} else {self.0.cosh() * self.1})
+        AD(self.0.sinh(), self.0.cosh() * self.1)
     }
 
     pub fn cosh(self) -> Self {
-        AD(self.0.cosh(), if self.zdf1() {0f64} else {-self.0.sinh() * self.1})
+        AD(self.0.cosh(), -self.0.sinh() * self.1)
     }
 
     pub fn tanh(self) -> Self {
-        AD(self.0.tanh(), if self.zdf1() {0f64} else {self.1 / self.0.cosh().powi(2)})
+        AD(self.0.tanh(), self.1 / self.0.cosh().powi(2))
     }
 
     pub fn asinh(self) -> Self {
-        AD(self.0.asinh(), if self.zdf1() {0f64} else {self.1 / (self.0 * self.0 + 1f64).sqrt()})
+        AD(self.0.asinh(), self.1 / (self.0 * self.0 + 1f64).sqrt())
     }
 
     pub fn acosh(self) -> Self {
-        AD(self.0.acosh(), if self.zdf1() {0f64} else {self.1 / (self.0* self.0 - 1f64).sqrt()})
+        AD(self.0.acosh(), self.1 / (self.0* self.0 - 1f64).sqrt())
     }
 
     pub fn atanh(self) -> Self {
-        AD(self.0.atanh(), if self.zdf1() {0f64} else {self.1 / (1f64 - self.0 * self.0)})
+        AD(self.0.atanh(), self.1 / (1f64 - self.0 * self.0))
     }
 }
