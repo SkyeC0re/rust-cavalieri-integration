@@ -6,17 +6,6 @@ pub struct AD(pub f64, pub f64);
 
 pub const ONE: AD = AD(1f64, 0f64);
 pub const ZERO: AD = AD(0f64, 0f64);
-impl AD {
-    #[inline(always)]
-    fn zdf1(self) -> bool {
-        self.1 == 0f64
-    }
-
-    #[inline(always)]
-    fn zdf2(self, rhs: AD) -> bool {
-        self.1 == 0f64 && rhs.1 == 0f64
-    }
-}
 
 impl From<f64> for AD {
     #[inline(always)]

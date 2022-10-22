@@ -13,16 +13,12 @@ use pyo3::pyclass;
 use roots::{find_root_brent, SimpleConvergency};
 
 use crate::{
-    core::{helpers::{Sign, Signed}, differentiable::{AD, ZERO}},
+    core::{helpers::{Sign, Signed}, differentiable::{AD, ZERO}, integrate::gauss_kronrod_quadrature},
     errors::Display2DError,
 };
 
 use super::integrate::integ_cavs_interval;
 
-struct Interval {
-    pub a: f64,
-    pub b: f64,
-}
 
 #[pyclass]
 pub struct CavDisplay {
@@ -37,7 +33,7 @@ pub struct CavDisplay {
     #[pyo3(get)]
     pub dgv: Vec<f64>,
     #[pyo3(get)]
-    pub integ_value: Option<f64>,
+    pub integ_value: Option<(f64, f64)>,
 }
 
 pub struct DisplayConfig {
@@ -45,6 +41,7 @@ pub struct DisplayConfig {
     pub x_res_gen: Box<dyn Fn(f64, f64) -> Vec<f64>>,
     pub y_res_gen: Box<dyn Fn(f64, f64) -> Vec<f64>>,
     pub max_rf_iters: usize,
+    pub max_int_iters: usize,
     pub tol: f64,
 }
 
@@ -55,6 +52,7 @@ impl Default for DisplayConfig {
             x_res_gen: Box::new(|a: f64, b: f64| linspace(a, b, 100)),
             y_res_gen: Box::new(|a: f64, b: f64| linspace(0f64, 1f64, 100)),
             max_rf_iters: 500,
+            max_int_iters: 500,
             tol: 1e-9,
         }
     }
@@ -76,8 +74,12 @@ impl DisplayConfig {
         let dgv = xv.iter().copied().map(|x| g(AD(x, 1f64)).0).collect();
 
         let integ_value = if self.compute_integ {
-            //Some(integ_cavs_interval(&f, &c, (a, b), self.tol))
-            None
+            Some(gauss_kronrod_quadrature(
+                |x| {
+                    let y = f(AD(x, 1f64));
+                    y.0 * (1f64 - c(y).1)
+                }, a, b, self.tol, Some(self.max_int_iters),
+            )?)
         } else {
             None
         };
@@ -160,8 +162,8 @@ pub fn gen_display_interval_cav(
     splits.insert(0, a);
     splits.push(b);
     let mut displays = Vec::with_capacity(splits.len() - 1);
-    for i in (1..splits.len()) {
-        displays.push(cfg.display(&f, &c, a, b)?);
+    for i in 1..splits.len() {
+        displays.push(cfg.display(&f, &c, splits[i-1], splits[i])?);
     }
     Ok(displays)
 }
@@ -200,7 +202,7 @@ pub fn split_strictly_monotone(
     xv[0] = xv[0] + x_sign * tol;
     xv[xv_len - 1] = xv[xv_len - 1] - x_sign * tol;
 
-    let mut dfv: Vec<AD> = xv
+    let dfv: Vec<AD> = xv
         .iter()
         .map(|x| {
             f(AD(*x, 1f64))
@@ -222,13 +224,10 @@ pub fn split_strictly_monotone(
             roots.push(dfv[i].0);
            
         } else if ldfs != rdfs {
-            let r = match find_root_brent(xv[i - 1], xv[i], |x| f(AD(x, 1f64)).1 , &mut SimpleConvergency {
+            let r = find_root_brent(xv[i - 1], xv[i], |x| f(AD(x, 1f64)).1 , &mut SimpleConvergency {
                 eps: tol,
                 max_iter: max_rf_iters,
-            }) {
-                Ok(v) => v,
-                Err(e) => panic!("Error: {:?} x: {:?} FDF: {:?}", e, &xv[i-1..=i], &dfv[i-1..=i]),
-            };
+            })?;
             roots.push(r);
         }
         i += 1;

@@ -58,11 +58,14 @@ pub enum Display2DError {
     #[error("Root did not converge: Peroxide Error: {0}")]
     RootError(String),
 
-    #[error("Non monotone region found after root detection.")]
+    #[error("Non monotone region found after root detection")]
     NonMonotone,
 
     #[error("BadInput: {0}")]
     BadInput(String),
+
+    #[error("Integration Error: {}", err)]
+    IntegrationError { err: IntegError },
 }
 
 impl From<RootError> for Display2DError {
@@ -86,5 +89,20 @@ impl From<Display2DError> for PyErr {
 impl From<ParsedFuncError> for PyErr {
     fn from(e: ParsedFuncError) -> Self {
         PyRuntimeError::new_err(format!("{}", e))
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum IntegError {
+    #[error("Integral did not converge within permitted iterations")]
+    ConvergenceError,
+
+    #[error("NaN value encountered during integration procedure")]
+    NaNError,
+}
+
+impl From<IntegError> for Display2DError {
+    fn from(ie: IntegError) -> Self {
+        Display2DError::IntegrationError { err: ie }
     }
 }
