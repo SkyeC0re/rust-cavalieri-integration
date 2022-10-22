@@ -1,9 +1,6 @@
 use peroxide::{
-    fuga::{integrate, Integral::G10K21, StableFn},
-    prelude::{
-        ADFn,
-        AD::{self, AD0, AD1},
-    },
+    fuga::{integrate, Integral::G10K21},
+    prelude::AD::{self, AD0, AD1},
 };
 
 pub fn integ_cavs_interval(

@@ -1,9 +1,6 @@
 use approx::assert_abs_diff_eq;
 use cavint::cav2d::integrate::integ_cavs_interval;
-use peroxide::prelude::{
-    linspace, ADFn,
-    AD::{self, AD0},
-};
+use peroxide::prelude::AD::{self, AD0};
 
 #[test]
 fn test_constant() {

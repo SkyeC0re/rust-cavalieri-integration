@@ -2,7 +2,6 @@ use std::{
     collections::{HashMap, HashSet},
     f64::consts::{E, PI},
     fmt::Display,
-    ops::{Add, Neg},
 };
 
 use mexprp::{Answer, Calculation, Config, Context, MathError, Num, Term};
@@ -14,9 +13,7 @@ use super::differentiable::AD;
 pub const VALID_VARIABLE_SYMBOLS: &str =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzαβγεζηϝθλμνξρστωψφυ";
 
-pub fn single_var_ad_func<A>(
-    func: A,
-) -> impl Fn(&[Term<AD>], &Context<AD>) -> Calculation<AD>
+pub fn single_var_ad_func<A>(func: A) -> impl Fn(&[Term<AD>], &Context<AD>) -> Calculation<AD>
 where
     A: Fn(AD) -> AD,
 {
@@ -44,7 +41,6 @@ impl From<AD> for Answer<AD> {
         Answer::Single(x)
     }
 }
-
 
 impl Num for AD {
     fn from_f64(t: f64, _ctx: &Context<Self>) -> mexprp::Calculation<Self> {
@@ -79,12 +75,11 @@ impl Num for AD {
     }
 
     fn pow(&self, other: &Self, _ctx: &Context<Self>) -> Calculation<Self> {
-        if other.1 == 0f64 && (other.0 as i32) as f64 == other.0  {
+        if other.1 == 0f64 && (other.0 as i32) as f64 == other.0 {
             Ok(AD::powi(*self, other.0 as i32).into())
         } else {
             Ok(AD::pow(*self, *other).into())
         }
-        
     }
 }
 
@@ -118,10 +113,7 @@ pub fn standard_context() -> Context<AD> {
     context.set_func("acosh", single_var_ad_func(AD::acosh));
     context.set_func("atanh", single_var_ad_func(AD::atanh));
     context.set_func("sqrt", single_var_ad_func(AD::sqrt));
-    context.set_func(
-        "abs",
-        single_var_ad_func(AD::abs)
-    );
+    context.set_func("abs", single_var_ad_func(AD::abs));
     context.set_func("ln", single_var_ad_func(AD::ln));
 
     context

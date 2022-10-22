@@ -1,5 +1,4 @@
-use std::ops::{Add, Sub, Neg, Mul, Div};
-
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd)]
 pub struct AD(pub f64, pub f64);
@@ -45,8 +44,10 @@ impl Mul for AD {
 impl Div for AD {
     type Output = Self;
     fn div(self, rhs: Self) -> Self::Output {
-    
-        AD(self.0 / rhs.0, self.1 / rhs.0  - (self.0 * rhs.1) / (rhs.0 * rhs.0))
+        AD(
+            self.0 / rhs.0,
+            self.1 / rhs.0 - (self.0 * rhs.1) / (rhs.0 * rhs.0),
+        )
     }
 }
 
@@ -74,7 +75,7 @@ impl AD {
     }
 
     pub fn powi(self, n: i32) -> Self {
-        let p = self.0.powi(n-1);
+        let p = self.0.powi(n - 1);
         AD(self.0 * p, (n as f64) * p * self.1)
     }
 
@@ -91,15 +92,15 @@ impl AD {
     }
 
     pub fn asin(self) -> Self {
-        AD(self.0.asin(), self.1 / (self.0* self.0 - 1f64).sqrt())
+        AD(self.0.asin(), self.1 / (self.0 * self.0 - 1f64).sqrt())
     }
 
     pub fn acos(self) -> Self {
-        AD(self.0.acos(), -self.1 / (self.0* self.0 - 1f64).sqrt())
+        AD(self.0.acos(), -self.1 / (self.0 * self.0 - 1f64).sqrt())
     }
 
     pub fn atan(self) -> Self {
-        AD(self.0.atan(), self.1 / (self.0* self.0 + 1f64))
+        AD(self.0.atan(), self.1 / (self.0 * self.0 + 1f64))
     }
 
     pub fn sinh(self) -> Self {
@@ -119,7 +120,7 @@ impl AD {
     }
 
     pub fn acosh(self) -> Self {
-        AD(self.0.acosh(), self.1 / (self.0* self.0 - 1f64).sqrt())
+        AD(self.0.acosh(), self.1 / (self.0 * self.0 - 1f64).sqrt())
     }
 
     pub fn atanh(self) -> Self {

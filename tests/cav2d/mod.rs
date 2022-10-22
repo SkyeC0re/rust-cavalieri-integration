@@ -1,2 +1,2 @@
-mod integrate;
 mod display;
+mod integrate;

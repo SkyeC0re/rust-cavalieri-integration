@@ -1,24 +1,17 @@
-use std::{
-    borrow::Borrow,
-    cmp::{max_by, min_by, Ordering},
-};
+use std::cmp::Ordering;
 
-use peroxide::{
-    fuga::{RootFind, RootFinder},
-    prelude::{
-        cubic_spline, false_position, linspace, Spline,
-    },
-};
+use peroxide::prelude::{cubic_spline, linspace, Spline};
 use pyo3::pyclass;
 use roots::{find_root_brent, SimpleConvergency};
 
 use crate::{
-    core::{helpers::{Sign, Signed}, differentiable::{AD, ZERO}, integrate::gauss_kronrod_quadrature},
+    core::{
+        differentiable::{AD, ZERO},
+        helpers::{Sign, Signed},
+        integrate::gauss_kronrod_quadrature,
+    },
     errors::Display2DError,
 };
-
-use super::integrate::integ_cavs_interval;
-
 
 #[pyclass]
 pub struct CavDisplay {
@@ -50,7 +43,7 @@ impl Default for DisplayConfig {
         Self {
             compute_integ: false,
             x_res_gen: Box::new(|a: f64, b: f64| linspace(a, b, 100)),
-            y_res_gen: Box::new(|a: f64, b: f64| linspace(0f64, 1f64, 100)),
+            y_res_gen: Box::new(|_a: f64, _b: f64| linspace(0f64, 1f64, 100)),
             max_rf_iters: 500,
             max_int_iters: 500,
             tol: 1e-9,
@@ -78,7 +71,11 @@ impl DisplayConfig {
                 |x| {
                     let y = f(AD(x, 1f64));
                     y.0 * (1f64 - c(y).1)
-                }, a, b, self.tol, Some(self.max_int_iters),
+                },
+                a,
+                b,
+                self.tol,
+                Some(self.max_int_iters),
             )?)
         } else {
             None
@@ -163,7 +160,7 @@ pub fn gen_display_interval_cav(
     splits.push(b);
     let mut displays = Vec::with_capacity(splits.len() - 1);
     for i in 1..splits.len() {
-        displays.push(cfg.display(&f, &c, splits[i-1], splits[i])?);
+        displays.push(cfg.display(&f, &c, splits[i - 1], splits[i])?);
     }
     Ok(displays)
 }
@@ -177,7 +174,7 @@ pub fn is_monotic_saddle(f: impl Fn(AD) -> AD, x: f64, tol: f64) -> bool {
     let x1 = f(AD(x - tol, 1f64));
     let x2 = f(AD(x + tol, 1f64));
 
-    if  x1.1.sign_val() == x2.1.sign_val() && x1.1.sign_val() == (x2.0 - x1.0).sign_val() {
+    if x1.1.sign_val() == x2.1.sign_val() && x1.1.sign_val() == (x2.0 - x1.0).sign_val() {
         true
     } else {
         false
@@ -202,32 +199,28 @@ pub fn split_strictly_monotone(
     xv[0] = xv[0] + x_sign * tol;
     xv[xv_len - 1] = xv[xv_len - 1] - x_sign * tol;
 
-    let dfv: Vec<AD> = xv
-        .iter()
-        .map(|x| {
-            f(AD(*x, 1f64))
-        })
-        .collect();
+    let dfv: Vec<AD> = xv.iter().map(|x| f(AD(*x, 1f64))).collect();
     let mut roots = vec![];
     let mut i = 1;
 
     while i < xv.len() {
         let ldfs = dfv[i - 1].1.sign();
         let rdfs = dfv[i].1.sign();
-        if ldfs == Sign::NAN
-            || (ldfs == Sign::ZERO && !is_monotic_saddle(&f, xv[i - 1], tol))
-        {
+        if ldfs == Sign::NAN || (ldfs == Sign::ZERO && !is_monotic_saddle(&f, xv[i - 1], tol)) {
             roots.push(dfv[i - 1].0);
-        } else if rdfs == Sign::NAN || (rdfs == Sign::ZERO && !is_monotic_saddle(&f, xv[i], tol))
-        {
+        } else if rdfs == Sign::NAN || (rdfs == Sign::ZERO && !is_monotic_saddle(&f, xv[i], tol)) {
             i += 1;
             roots.push(dfv[i].0);
-           
         } else if ldfs != rdfs {
-            let r = find_root_brent(xv[i - 1], xv[i], |x| f(AD(x, 1f64)).1 , &mut SimpleConvergency {
-                eps: tol,
-                max_iter: max_rf_iters,
-            })?;
+            let r = find_root_brent(
+                xv[i - 1],
+                xv[i],
+                |x| f(AD(x, 1f64)).1,
+                &mut SimpleConvergency {
+                    eps: tol,
+                    max_iter: max_rf_iters,
+                },
+            )?;
             roots.push(r);
         }
         i += 1;
@@ -284,7 +277,7 @@ pub fn split_translational(
     });
 
     // Merge roots if they overlap within `tol` precision.
-    let mut roots = if merged_roots.len() > 1 {
+    let roots = if merged_roots.len() > 1 {
         let mut li = 0;
         let mut roots = Vec::with_capacity(merged_roots.len());
         for (i, r) in merged_roots.iter().enumerate() {
@@ -310,7 +303,7 @@ pub fn generate_c(
     a: f64,
     b: f64,
     x_res_gen: impl Fn(f64, f64) -> Vec<f64>,
-    tol: f64,
+    _tol: f64,
 ) -> Result<TRegion, Display2DError> {
     let mut xv = x_res_gen(a, b);
     let yv: Vec<f64> = xv.iter().map(|x| f(AD(*x, 0f64)).0).collect();

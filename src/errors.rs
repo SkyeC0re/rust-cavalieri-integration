@@ -1,8 +1,5 @@
 use peroxide::fuga::RootError;
-use pyo3::{
-    exceptions::{PyException, PyRuntimeError},
-    PyErr,
-};
+use pyo3::{exceptions::PyRuntimeError, PyErr};
 use roots::SearchError;
 use thiserror::Error;
 

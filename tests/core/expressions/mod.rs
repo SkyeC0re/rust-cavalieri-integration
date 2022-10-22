@@ -1,4 +1,4 @@
-use cavint::core::{parsing::parse_expr, differentiable::AD};
+use cavint::core::{differentiable::AD, parsing::parse_expr};
 
 mod basic_expressions;
 
