@@ -119,7 +119,6 @@ fn unit_symmetric_gauss_quadrature(f: impl Fn(f64) -> f64, rule: &[(f64, f64)]) 
     } else {
         0
     };
-    let mut s = 0f64;
     for &(n, w) in &rule[i..] {
         s += w * (f(-n) + f(n));
     }
