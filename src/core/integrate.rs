@@ -23,7 +23,7 @@ const KRONROD_NODES_WEIGHTS_21: [(f64, f64); 11] = [
     (0.97390652851717172, 0.032558162307964727),
     (0.995657163025808081, 0.011694638867371874),
 ];
-#[derive(PartialEq, PartialOrd, Clone)]
+#[derive(PartialEq, PartialOrd, Clone, Debug)]
 struct ApproxInterval {
     pub err: f64,
     pub val: f64,
@@ -113,7 +113,7 @@ fn unit_symmetric_gauss_quadrature(f: impl Fn(f64) -> f64, rule: &[(f64, f64)]) 
     if rule.len() == 0 {
         return s;
     }
-    let i = if rule.len() % 2 != 0 {
+    let i = if rule[0].0 == 0f64 {
         s += rule[0].1 * f(rule[0].0);
         1
     } else {
