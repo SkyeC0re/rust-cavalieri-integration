@@ -33,6 +33,9 @@ pub enum ParsedFuncError {
 
     #[error("Unexpected value: {}", err)]
     ValueError { err: String },
+
+    #[error("Nom parsing error: {0}")]
+    NomError(String)
 }
 
 impl From<mexprp::ParseError> for ParsedFuncError {
@@ -44,6 +47,12 @@ impl From<mexprp::ParseError> for ParsedFuncError {
 impl From<mexprp::MathError> for ParsedFuncError {
     fn from(err: mexprp::MathError) -> Self {
         Self::MexMathError { err }
+    }
+}
+
+impl<T> From<nom::error::Error<T>> for ParsedFuncError {
+    fn from(err: nom::error::Error<T>) -> Self {
+        Self::NomError("".to_string())
     }
 }
 
