@@ -5,32 +5,21 @@ use pyo3::PyResult;
 
 use crate::cav2d::display::{gen_display_interval_cav, CavDisplay, DisplayConfig};
 use crate::core::differentiable::AD;
-use crate::core::parsing::parse_expr;
-
-#[pyfunction]
-pub fn eval_expr(expr: String, vars: String, pars: Vec<f64>) -> PyResult<(f64, f64)> {
-    let mut f = parse_expr(&expr, vars.as_str())?;
-    let res = f(&pars.into_iter().map(|v| v.into()).collect::<Vec<_>>()[..])?;
-
-    Ok((res.0, res.1))
-}
+use crate::core::parsing::compile_expression;
+use crate::core::parsing::DefaultContext;
 
 #[pyfunction]
 pub fn display_cav(f_expr: String, c_expr: String, a: f64, b: f64) -> PyResult<Vec<CavDisplay>> {
-    let mut f = parse_expr(&f_expr, "x")?;
-    let mut c = parse_expr(&c_expr, "y")?;
-
-    // Ensure expression is valid and operations can be run.
-    c(&[f(&[AD(a, 0f64)])?])?;
-
-    let f = FairMutex::new(f);
-    let f = move |x: AD| (f.lock())(&[x]).unwrap_or(AD(f64::NAN, f64::NAN));
-    let c = FairMutex::new(c);
-    let c = move |x: AD| (c.lock())(&[x]).unwrap_or(AD(f64::NAN, f64::NAN));
+    let mut f_context = DefaultContext::default();
+    f_context.add_var("x", 0);
+    let f_expr = compile_expression(&f_expr, f_context)?;
+    let mut c_context = DefaultContext::default();
+    c_context.add_var("y", 0);
+    let c_expr = compile_expression(&c_expr, c_context)?;
 
     Ok(gen_display_interval_cav(
-        f,
-        c,
+        move |x| f_expr.eval(&[x]),
+        move |y| c_expr.eval(&[y]),
         a,
         b,
         DisplayConfig::default(),

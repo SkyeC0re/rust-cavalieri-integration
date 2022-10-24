@@ -7,12 +7,11 @@ pub mod errors;
 use pyo3::prelude::*;
 
 use cav2d::display::CavDisplay;
-use cpython_funcs::extension::{display_cav, eval_expr};
+use cpython_funcs::extension::display_cav;
 
 #[pymodule]
 fn cavint(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<CavDisplay>()?;
-    m.add_function(wrap_pyfunction!(eval_expr, m)?)?;
     m.add_function(wrap_pyfunction!(display_cav, m)?)?;
     Ok(())
 }

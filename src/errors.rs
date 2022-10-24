@@ -45,6 +45,9 @@ pub enum ParsedFuncError {
 
     #[error("Parsing did not consume entire expression at '...{0}'")]
     ResidueError(String),
+
+    #[error("Parameter '{0}' has index {1} which is out of bounds for [T; {2}]")]
+    ParameterOutOfBounds(String, usize, usize),
 }
 
 impl From<mexprp::ParseError> for ParsedFuncError {
