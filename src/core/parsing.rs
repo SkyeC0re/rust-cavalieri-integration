@@ -1,23 +1,12 @@
 use std::{
-    borrow::Borrow,
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     f64::consts::{E, PI},
-    fmt::Display,
     ops::{Add, Div, Mul, Neg, Sub},
-    rc::Rc,
 };
 
-use mexprp::{Answer, Calculation, Config, Context, Expression, MathError, Num, Term};
 use nom::{
-    branch::alt,
-    bytes::complete::{tag, take_while_m_n},
-    character::complete::{alpha1, multispace0},
-    combinator::{map_res, opt, peek, recognize, verify},
-    error::{Error, ErrorKind, ParseError},
-    multi::fold_many0,
-    number::complete::double,
-    sequence::{delimited, pair, preceded, terminated, tuple},
-    IResult,
+    branch::alt, bytes::complete::tag, character::complete::alpha1, combinator::verify,
+    error::Error, multi::fold_many0, number::complete::double, IResult,
 };
 
 use crate::errors::ParsedFuncError;
@@ -157,7 +146,9 @@ fn parse_var<'a, 'b, const I: usize, T: Parsable>(
     Ok((expr, res))
 }
 
-fn parse_const<'a, 'b,const I: usize, T: Parsable>(expr: &'b str) -> IResult<&'b str, Expr<'a,I, T>, String> {
+fn parse_const<'a, 'b, const I: usize, T: Parsable>(
+    expr: &'b str,
+) -> IResult<&'b str, Expr<'a, I, T>, String> {
     match double::<_, Error<&str>>(expr) {
         Ok((expr, c)) => Ok((expr, Expr::Const(T::from(c)))),
         _ => return Err(nom::Err::Error(format!("Error parsing f64 at '...{expr}'"))),
@@ -338,7 +329,7 @@ impl<'a, T: Parsable> AsRef<HashMap<String, ContextElement<'a, T>>> for DefaultC
     }
 }
 
-/* `DefaultContext` implementations*/ 
+/* `DefaultContext` implementations*/
 
 impl<'a> Default for DefaultContext<'a, AD> {
     fn default() -> Self {

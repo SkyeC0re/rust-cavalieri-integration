@@ -1,10 +1,9 @@
-use parking_lot::FairMutex;
 use pyo3::prelude::*;
 
 use pyo3::PyResult;
 
 use crate::cav2d::display::{gen_display_interval_cav, CavDisplay, DisplayConfig};
-use crate::core::differentiable::AD;
+
 use crate::core::parsing::compile_expression;
 use crate::core::parsing::DefaultContext;
 
