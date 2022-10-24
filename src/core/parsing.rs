@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     f64::consts::{E, PI},
     fmt::Display,
-    ops::{Add, Div, Mul, Neg},
+    ops::{Add, Div, Mul, Neg, Sub},
     rc::Rc,
 };
 
@@ -15,7 +15,7 @@ use nom::{
     error::{Error, ErrorKind, ParseError},
     multi::fold_many0,
     number::complete::double,
-    sequence::{delimited, preceded, terminated, tuple},
+    sequence::{delimited, pair, preceded, terminated, tuple},
     IResult,
 };
 
@@ -234,14 +234,46 @@ enum Expr<'a, T> {
     Const(T),
     UOp(Box<Expr<'a, T>>, &'a dyn Fn(T) -> T),
     BiOp(Box<Expr<'a, T>>, Box<Expr<'a, T>>, &'a dyn Fn(T, T) -> T),
+    Powi(Box<Expr<'a, T>>, i32),
 }
 
-pub trait BasicArithmetic: Add<Self> + Mul<Self> + Div<Self> + Neg<Output = Self> + Sized {
+
+pub trait BasicArithmetic:
+    Add<Self, Output = Self>
+    + Sub<Self, Output = Self>
+    + Mul<Self, Output = Self>
+    + Div<Self, Output = Self>
+    + Neg<Output = Self>
+    + Clone
+    + Sized
+{
     fn powf(self, rhs: Self) -> Self;
     fn powi(self, n: i32) -> Self;
 }
 
-trait Parsable: BasicArithmetic + From<f64> + Clone {}
+impl<'a, T: BasicArithmetic> Expr<'a, T> {
+    pub fn eval(&self, pars: &[T]) -> T {
+        match self {
+            Expr::Const(c) => c.clone(),
+            Expr::Var(i) => pars[*i].clone(),
+            Expr::UOp(inner, op) => op(inner.eval(pars)),
+            Expr::BiOp(inner1,inner2 , op) => op(inner1.eval(pars), inner2.eval(pars)),
+            Expr::Powi(inner, exponent) => inner.eval(pars).powi(*exponent),
+        }
+    }
+
+    pub fn safe_eval(&self, pars: &[T]) -> Option<T> {
+        match self {
+            Expr::Const(c) => Some(c.clone()),
+            Expr::Var(i) => pars.get(*i).cloned(),
+            Expr::UOp(inner, op) => inner.safe_eval(pars).map(|x| op(x)),
+            Expr::BiOp(inner1,inner2 , op) => inner1.safe_eval(pars).zip(inner2.safe_eval(pars)).map(|(x1, x2)| op(x1, x2)),
+            Expr::Powi(inner, exponent) => inner.safe_eval(pars).map(|x| x.powi(*exponent)),
+        }
+    }
+}
+
+pub trait Parsable: BasicArithmetic + From<f64> {}
 
 fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
     inner: F,
@@ -254,32 +286,18 @@ where
 
 fn parse_parenth<'a, T: Parsable>(
     expr: &'a str,
-    varops: &'a HashMap<String, Expr<'a, T>>,
+    context: &'a HashMap<String, ContextElement<'a, T>>,
 ) -> IResult<&'a str, Expr<'a, T>, String> {
     let expr = match tag::<_, _, Error<&str>>("(")(expr) {
         Ok((expr, _)) => expr,
         Err(e) => return Err(e.map(|_| format!("No opening parenthesis found at: '...{}'", expr))),
     };
-    let (expr, res) = parse_expression(expr, varops)?;
+    let (expr, res) = parse_expression(expr, context)?;
     let expr = match tag::<_, _, Error<&str>>("(")(expr) {
         Ok((expr, _)) => expr,
         Err(e) => return Err(e.map(|_| format!("No closing parenthesis found at: '...{}'", expr))),
     };
     Ok((expr, res))
-}
-
-fn parse_terms_add<'a, T: Parsable>(
-    expr: &'a str,
-    varops: &'a HashMap<String, Expr<'a, T>>,
-) -> IResult<&'a str, Expr<'a, T>, String> {
-    todo!()
-}
-
-fn parse_terms_mul<'a, T: Parsable>(
-    expr: &'a str,
-    varops: &'a HashMap<String, Expr<'a, T>>,
-) -> IResult<&'a str, Expr<'a, T>, String> {
-    todo!()
 }
 
 fn parse_neg_count(expr: &str) -> IResult<&str, usize> {
@@ -289,18 +307,18 @@ fn parse_neg_count(expr: &str) -> IResult<&str, usize> {
 fn parse_name(expr: &str) -> IResult<&str, &str, String> {
     match alpha1::<_, Error<&str>>(expr) {
         Ok(v) => Ok(v),
-        Err(e) => Err(e.map(|_| format!("Could not find a valid function name at '...{}'", expr))),
+        Err(e) => Err(e.map(|_| format!("Could not find a valid name at '...{}'", expr))),
     }
 }
 
 fn parse_func<'a, T: Parsable>(
     expr: &'a str,
-    varops: &'a HashMap<String, Expr<'a, T>>,
+    context: &'a HashMap<String, ContextElement<'a, T>>,
 ) -> IResult<&'a str, Expr<'a, T>, String> {
     let (expr, name) = parse_name(expr)?;
 
-    let func = match varops.get(name) {
-        Some(Expr::UOp(_, f)) => (*f).clone(),
+    let func = match context.get(name) {
+        Some(ContextElement::UOp(f)) => (*f).clone(),
         _ => {
             return Err(nom::Err::Error(format!(
                 "No unary operator with name '{name}' exists"
@@ -316,7 +334,7 @@ fn parse_func<'a, T: Parsable>(
             )
         }
     };
-    let (expr, res) = parse_expression(expr, varops)?;
+    let (expr, res) = parse_expression(expr, context)?;
     let expr = match tag::<_, _, Error<&str>>(")")(expr) {
         Ok((expr, _)) => expr,
         Err(e) => {
@@ -331,13 +349,13 @@ fn parse_func<'a, T: Parsable>(
 
 fn parse_var<'a, T: Parsable>(
     expr: &'a str,
-    varops: &'a HashMap<String, Expr<'a, T>>,
+    context: &'a HashMap<String, ContextElement<'a, T>>,
 ) -> IResult<&'a str, Expr<'a, T>, String> {
     let (expr, name) = parse_name(expr)?;
 
-    let res = match varops.get(name) {
-        Some(Expr::Const(x)) => Expr::Const(x.clone()),
-        Some(Expr::Var(i)) => Expr::Var(*i),
+    let res = match context.get(name) {
+        Some(ContextElement::Const(x)) => Expr::Const(x.clone()),
+        Some(ContextElement::Var(i)) => Expr::Var(*i),
         _ => {
             return Err(nom::Err::Error(format!(
                 "No variable or parameter with name '{name}' exists"
@@ -350,7 +368,7 @@ fn parse_var<'a, T: Parsable>(
 
 fn parse_const<'a, T: Parsable>(
     expr: &'a str,
-    varops: &'a HashMap<String, Expr<'a, T>>,
+    context: &'a HashMap<String, ContextElement<'a, T>>,
 ) -> IResult<&'a str, Expr<'a, T>, String> {
     match double::<_, Error<&str>>(expr) {
         Ok((expr, c)) => Ok((expr, Expr::Const(T::from(c)))),
@@ -360,7 +378,7 @@ fn parse_const<'a, T: Parsable>(
 
 fn parse_pow<'a, T: Parsable>(
     expr: &'a str,
-    varops: &'a HashMap<String, Expr<'a, T>>,
+    context: &'a HashMap<String, ContextElement<'a, T>>,
 ) -> IResult<&'a str, Expr<'a, T>, String> {
     let expr = match tag::<_, _, Error<&str>>("^")(expr) {
         Ok((expr, _)) => expr,
@@ -370,7 +388,7 @@ fn parse_pow<'a, T: Parsable>(
             )))
         }
     };
-    parse_expression(expr, varops)
+    parse_expression(expr, context)
 }
 
 fn parse_powi<'a>(expr: &'a str) -> IResult<&'a str, i32, String> {
@@ -388,7 +406,7 @@ fn parse_powi<'a>(expr: &'a str) -> IResult<&'a str, i32, String> {
 
 fn parse_term<'a, T: Parsable>(
     expr: &'a str,
-    varops: &'a HashMap<String, Expr<'a, T>>,
+    context: &'a HashMap<String, ContextElement<'a, T>>,
     allow_neg: bool,
 ) -> IResult<&'a str, Expr<'a, T>, String> {
     let (expr, negations) = match verify(parse_neg_count, |negations| {
@@ -399,19 +417,19 @@ fn parse_term<'a, T: Parsable>(
         Err(e) => return Err(e.map(|_| format!("Too many negations at: '...{}'", expr))),
     };
 
-    let mut term = parse_parenth(expr, varops)
-        .or_else(|e| parse_func(expr, varops))
-        .or_else(|e| parse_var(expr, varops))
-        .or_else(|e| parse_const(expr, varops))
+    let mut term = parse_parenth(expr, context)
+        .or_else(|_| parse_func(expr, context))
+        .or_else(|_| parse_var(expr, context))
+        .or_else(|_| parse_const(expr, context))
         .map_err(|_| nom::Err::Error(format!("Error parsing singular term at '...{expr}'")))?;
 
     // Exponentiation
-    if let Ok((expr, exponent)) = parse_pow(expr, varops) {
+    if let Ok((expr, exponent)) = parse_pow(expr, context) {
         term.0 = expr;
         term.1 = Expr::BiOp(Box::new(term.1), Box::new(exponent), &T::powf);
     } else if let Ok((expr, exponent)) = parse_powi(expr) {
         term.0 = expr;
-        term.1 = Expr::UOp(Box::new(term.1), move |x: T| x.powi(exponent));
+        term.1 = Expr::Powi(Box::new(term.1), exponent);
     }
 
     // Negation
@@ -422,51 +440,72 @@ fn parse_term<'a, T: Parsable>(
     Ok(term)
 }
 
-fn parse_expression<'a, T: Parsable>(
+fn parse_terms_mul<'a, T: Parsable>(
     expr: &'a str,
-    varops: &'a HashMap<String, Expr<impl Parsable>>,
+    context: &'a HashMap<String, ContextElement<'a, T>>,
+    allow_neg: bool,
 ) -> IResult<&'a str, Expr<'a, T>, String> {
-    todo!()
+    let mut terms = parse_term(expr, context, allow_neg)?;
+    while let Ok((nexpr, op)) = alt::<_, _, Error<&str>, _>((tag("*"), tag("/")))(expr) {
+        let term = parse_term(nexpr, context, true)?;
+        let func: &dyn Fn(T, T) -> T = match op {
+            "*" => &T::div,
+            "/" => &T::mul,
+            _ => unreachable!(),
+        };
+        terms.0 = term.0;
+        terms.1 = Expr::BiOp(Box::new(terms.1), Box::new(term.1), func);
+    }
+    Ok(terms)
 }
 
-fn compile_expression<T: Parsable>(
-    expr: &str,
-    consts: &[(&str, T)],
-    vars: &[&str],
-    ops: &[(&str, &dyn Fn(T) -> T)],
-) -> Result<(), ParsedFuncError> {
-    let mut uniq = HashMap::new();
+fn parse_expression<'a, T: Parsable>(
+    expr: &'a str,
+    context: &'a HashMap<String, ContextElement<'a, T>>,
+) -> IResult<&'a str, Expr<'a, T>, String> {
+    let mut terms = parse_terms_mul(expr, context, true)?;
+    while let Ok((nexpr, op)) = alt::<_, _, Error<&str>, _>((tag("+"), tag("-")))(expr) {
+        let term = parse_terms_mul(nexpr, context, false)?;
+        let func: &dyn Fn(T, T) -> T = match op {
+            "+" => &T::add,
+            "-" => &T::sub,
+            _ => unreachable!(),
+        };
+        terms.0 = term.0;
+        terms.1 = Expr::BiOp(Box::new(terms.1), Box::new(term.1), func);
+    }
+    Ok(terms)
+}
 
-    for (name, val) in consts {
-        if uniq
-            .insert(name.to_string(), Expr::Const(val.clone()))
-            .is_some()
-        {
-            panic!()
+fn parse_expression_outer<'a, T: Parsable>(
+    expr: &'a str,
+    context: &'a HashMap<String, ContextElement<'a, T>>,
+) -> Result<Expr<'a, T>, ParsedFuncError> {
+    let term  = parse_expression(expr, context)?;
+    if !term.0.is_empty() {
+        return Err(ParsedFuncError::ResidueError(term.0.to_string()));
+    }
+    Ok(term.1)
+}
+
+pub enum ContextElement<'a, T: Parsable> {
+    Const(T),
+    Var(usize),
+    UOp(&'a dyn Fn(T) -> T)
+}
+
+pub fn compile_expression<'a, T: Parsable, F: Fn(&[T]) -> T>(
+    expr: &'a str,
+    context: HashMap<String, ContextElement<'a, T>>
+) -> Result<F, ParsedFuncError> {
+    for name in context.keys() {
+        if parse_name(name).is_err() {
+            return Err(ParsedFuncError::BadName(name.to_string()));
         }
     }
-
-    for (i, name) in vars.iter().copied().enumerate() {
-        if uniq.insert(name.to_string(), Expr::Var(i)).is_some() {
-            panic!()
-        }
-    }
-
-    for (name, func) in ops {
-        if uniq
-            .insert(name.to_string(), Expr::UOp(Box::new(Expr::Var(0)), *func))
-            .is_some()
-        {
-            panic!()
-        }
-    }
-
     let mut expr = expr.to_string();
     expr.retain(|c| !c.is_whitespace());
 
-    // let eval = |mut expr: &str| -> IResult<&str, Box<Expr<'a, T>>> {
-
-    // }
-
-    todo!()
+    let term = parse_expression_outer::<T>(&expr, &context)?;
+    Ok(move |pars|term.eval(pars))
 }

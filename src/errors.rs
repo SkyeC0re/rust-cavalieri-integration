@@ -34,8 +34,17 @@ pub enum ParsedFuncError {
     #[error("Unexpected value: {}", err)]
     ValueError { err: String },
 
+    #[error("Variable, constant or function name '{0}' is not valid")]
+    BadName(String),
+
+    #[error("Name '{0}' already present in variable, constant and function name declarations")]
+    NameTaken(String),
+
     #[error("Nom parsing error: {0}")]
-    NomError(String)
+    NomError(String),
+
+    #[error("Parsing did not consume entire expression at '...{0}'")]
+    ResidueError(String),
 }
 
 impl From<mexprp::ParseError> for ParsedFuncError {
@@ -50,9 +59,15 @@ impl From<mexprp::MathError> for ParsedFuncError {
     }
 }
 
-impl<T> From<nom::error::Error<T>> for ParsedFuncError {
-    fn from(err: nom::error::Error<T>) -> Self {
-        Self::NomError("".to_string())
+// impl<T: ToString> From<nom::error::Error<T>> for ParsedFuncError {
+//     fn from(err: nom::error::Error<T>) -> Self {
+//         Self::NomError(err.input.to_string())
+//     }
+// }
+
+impl From<nom::Err<String>> for ParsedFuncError {
+    fn from(err: nom::Err<String>) -> Self {
+        ParsedFuncError::NomError(format!("{:?}", err))
     }
 }
 
