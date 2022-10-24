@@ -1,5 +1,7 @@
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
+use super::parsing::{BasicArithmetic, Parsable};
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd)]
 pub struct AD(pub f64, pub f64);
 
