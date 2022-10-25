@@ -6,30 +6,6 @@ use thiserror::Error;
 /// An error that can occur during parsing
 #[derive(Debug, Error)]
 pub enum ParsedFuncError {
-    /// Variable is not in list of allowed variables.
-    #[error("Variable '{}' not allowed", var)]
-    InvalidVariable { var: String },
-
-    /// Variable has been previously declared.
-    #[error(
-        "Variable '{}' already present in {} declarations",
-        var,
-        if *in_var_decs {"variable"} else {"function"},
-    )]
-    VariableTaken { var: char, in_var_decs: bool },
-
-    #[error("Mexprp parsing error: {:?}", err)]
-    MexParsingError { err: mexprp::ParseError },
-
-    #[error("Mexprp parsing error: {:?}", err)]
-    MexMathError { err: mexprp::MathError },
-
-    #[error(
-        "Wrong amount of input parameters used, got {}, expected {:?}",
-        count,
-        expected
-    )]
-    IncorrectParameters { count: usize, expected: Vec<String> },
 
     #[error("Unexpected value: {}", err)]
     ValueError { err: String },
@@ -49,24 +25,6 @@ pub enum ParsedFuncError {
     #[error("Parameter '{0}' has index {1} which is out of bounds for [T; {2}]")]
     ParameterOutOfBounds(String, usize, usize),
 }
-
-impl From<mexprp::ParseError> for ParsedFuncError {
-    fn from(err: mexprp::ParseError) -> Self {
-        Self::MexParsingError { err }
-    }
-}
-
-impl From<mexprp::MathError> for ParsedFuncError {
-    fn from(err: mexprp::MathError) -> Self {
-        Self::MexMathError { err }
-    }
-}
-
-// impl<T: ToString> From<nom::error::Error<T>> for ParsedFuncError {
-//     fn from(err: nom::error::Error<T>) -> Self {
-//         Self::NomError(err.input.to_string())
-//     }
-// }
 
 impl From<nom::Err<String>> for ParsedFuncError {
     fn from(err: nom::Err<String>) -> Self {
@@ -129,4 +87,17 @@ impl From<IntegError> for Display2DError {
     fn from(ie: IntegError) -> Self {
         Display2DError::IntegrationError { err: ie }
     }
+}
+
+
+#[derive(Debug, Error)]
+pub enum TriangulationError {
+    #[error("Overlapping lines found at {0:?}")]
+    Overlap([f64;2]),
+
+    #[error("Duplicate point found in polygon set: {0:?}")]
+    DuplicatePoint(([f64; 2])),
+
+    #[error("NaN value encountered during triangulation procedure")]
+    NaNError,
 }
