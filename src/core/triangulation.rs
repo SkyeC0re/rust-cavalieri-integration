@@ -1,7 +1,8 @@
 use std::{
     cell::RefCell,
     cmp::{min_by, Ordering},
-    mem::{transmute},
+    collections::BTreeSet,
+    mem::transmute,
     rc::Rc,
 };
 
@@ -81,6 +82,17 @@ impl Ord for Pt {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct Triag([Pt; 3]);
+
+impl Triag {
+    pub fn new(mut pts: [Pt; 3]) -> Self {
+        pts.sort();
+        Self(pts)
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
 enum PSign {
     C,
     CC,
@@ -118,12 +130,12 @@ struct LPt {
 }
 
 impl LPt {
-    pub fn new(p: Pt) -> Self {
-        Self {
+    pub fn new(p: Pt) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Self {
             p,
             prev: None,
             next: None,
-        }
+        }))
     }
 
     pub fn get_type(&self) -> Option<PType> {
@@ -160,7 +172,7 @@ struct BackChain {
 
 impl BackChain {
     pub fn new(p: Pt) -> Self {
-        let p = Rc::new(RefCell::new(LPt::new(p)));
+        let p = LPt::new(p);
         Self {
             rm: p.clone(),
             head: p.clone(),
@@ -179,7 +191,7 @@ impl BackChain {
         self.rm.borrow_mut().next = Some(b_chain.tail.clone());
 
         // Create duplicate of old rightmost point and link
-        let mut old_rm_detached = Rc::new(RefCell::new(LPt::new(old_rm_pt)));
+        let mut old_rm_detached = LPt::new(old_rm_pt);
         old_rm_detached.borrow_mut().next = old_rm_next;
         if let Some(rm_next) = &mut old_rm_detached.borrow_mut().next {
             rm_next.borrow_mut().prev = Some(old_rm_detached.clone())
@@ -199,9 +211,121 @@ impl BackChain {
 
         (b_chain, t_chain)
     }
+
+    pub fn merge(mut b_chain: Self, mut t_chain: Self, p: Pt) -> Self {
+        let mut merged = Self::new(p);
+
+        // Attach bottom chain to new rightmost point `p`
+        b_chain.tail.borrow_mut().next = Some(merged.head.clone());
+        merged.head.borrow_mut().prev = Some(b_chain.tail);
+        merged.head = b_chain.head;
+
+        // Attach top chain to new rightmost point `p`
+        t_chain.head.borrow_mut().prev = Some(merged.tail.clone());
+        merged.tail.borrow_mut().next = Some(t_chain.head);
+        merged.tail = t_chain.tail;
+
+        merged
+    }
+
+    pub fn append(&mut self, p: Pt, to_tail: bool) {
+        let mut new_rm = LPt::new(p);
+        self.rm = new_rm.clone();
+        if to_tail {
+            new_rm.borrow_mut().prev = Some(self.tail.clone());
+            self.tail.borrow_mut().next = Some(new_rm.clone());
+            self.tail = new_rm
+        } else {
+            new_rm.borrow_mut().next = Some(self.head.clone());
+            self.head.borrow_mut().prev = Some(new_rm.clone());
+            self.head = new_rm
+        }
+    }
+
+    fn node_triangulate(from_node: &Rc<RefCell<LPt>>, backward: bool, triag_list: &mut Vec<Triag>) {
+        loop {
+            let mut triplet = if backward {
+                let n3 = from_node;
+                if let Some(n2) = &n3.borrow().prev {
+                    if let Some(n1) = &n2.borrow().prev {
+                        [n1.clone(), n2.clone(), n3.clone()]
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            } else {
+                let n1 = from_node;
+                if let Some(n2) = &n1.borrow().next {
+                    if let Some(n3) = &n2.borrow().next {
+                        [n1.clone(), n2.clone(), n3.clone()]
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            };
+            let pts = [
+                triplet[0].borrow().p,
+                triplet[1].borrow().p,
+                triplet[2].borrow().p,
+            ];
+            if clockwise_sign(&pts) == PSign::C {
+                triplet[0].borrow_mut().next = Some(triplet[2].clone());
+                triplet[2].borrow_mut().prev = Some(triplet[0].clone());
+                triag_list.push(Triag::new(pts));
+            } else {
+                break;
+            }
+        }
+    }
+
+    pub fn back_triangulate(&mut self, from_tail: bool, triag_list: &mut Vec<Triag>) {
+        let node = match from_tail {
+            true => &mut self.tail,
+            false => &mut self.head,
+        };
+
+        Self::node_triangulate(node, from_tail, triag_list);
+    }
+
+    pub fn rm_split_triangulate(&mut self, triag_list: &mut Vec<Triag>) {
+        Self::node_triangulate(&self.rm, true, triag_list);
+        Self::node_triangulate(&self.rm, false, triag_list);
+    }
 }
 
-// struct YEdge {
-//     pub rp: LPt,
-//     pub
-// }
+
+
+struct YEdge {
+    pub rpt: Rc<RefCell<LPt>>,
+    pub backchain: Option<BackChain>,
+    pub bof_in_interval: bool,
+    pub y_struct: Rc<RefCell<YStruct>>,
+    pub b_partner: Option<Rc<RefCell<Self>>>,
+    pub t_partner: Option<Rc<RefCell<Self>>>,
+}
+
+impl YEdge {
+    pub fn new(
+        rpt: Rc<RefCell<LPt>>,
+        y_struct: Rc<RefCell<YStruct>>,
+        bof_in_interval: bool,
+    ) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Self {
+            rpt,
+            backchain: None,
+            bof_in_interval,
+            y_struct,
+            b_partner: None,
+            t_partner: None,
+        }))
+    }
+}
+
+struct YStruct {
+    x: f64,
+    active_edges: BTreeSet<YEdge>,
+}
