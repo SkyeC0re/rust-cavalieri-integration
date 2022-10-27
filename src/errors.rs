@@ -3,10 +3,11 @@ use pyo3::{exceptions::PyRuntimeError, PyErr};
 use roots::SearchError;
 use thiserror::Error;
 
+use crate::core::triangulation::{PType, Pt};
+
 /// An error that can occur during parsing
 #[derive(Debug, Error)]
 pub enum ParsedFuncError {
-
     #[error("Unexpected value: {}", err)]
     ValueError { err: String },
 
@@ -89,15 +90,20 @@ impl From<IntegError> for Display2DError {
     }
 }
 
-
 #[derive(Debug, Error)]
 pub enum TriangulationError {
-    #[error("Overlapping lines found at {0:?}")]
-    Overlap([f64;2]),
+    #[error("Overlap found during evaluation of {0:?} point {1}")]
+    Overlap(PType, Pt),
 
-    #[error("Duplicate point found in polygon set: {0:?}")]
-    DuplicatePoint(([f64; 2])),
+    #[error("Duplicate point found in polygon set: {0}")]
+    DuplicatePoint(Pt),
 
-    #[error("NaN value encountered during triangulation procedure")]
-    NaNError,
+    #[error("Non finite polygon point value enocuntered")]
+    NonFiniteInputError,
+
+    #[error("Encountered a polygon with less than 3 points")]
+    NoPolygon,
+
+    #[error("Point type could not be derived for point {0}")]
+    NoPointType(Pt)
 }

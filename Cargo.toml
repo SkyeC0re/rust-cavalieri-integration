@@ -18,3 +18,4 @@ pyo3 = { version = "0.17.2", features = ["extension-module"] }
 parking_lot = "0.12.1"
 roots = "0.0.7"
 nom = "7.1.1"
+ordered-float = "3.3.0"
