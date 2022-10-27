@@ -19,7 +19,7 @@ type Of64 = OFlt<f64>;
 
 /* Point and point type implementations */
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PType {
     Start,
     End,
@@ -43,6 +43,10 @@ impl PType {
 pub struct Pt([OFlt<f64>; 2]);
 
 impl Pt {
+    pub fn new(x: impl Into<Of64>, y: impl Into<Of64>) -> Self {
+        Self([x.into(), y.into()])
+    }
+
     pub fn x(self) -> OFlt<f64> {
         self.0[0]
     }
@@ -67,9 +71,9 @@ impl Display for Pt {
     }
 }
 
-impl Display for LPt {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.p.fmt(f)
+impl From<[f64; 2]> for Pt {
+    fn from(xy: [f64; 2]) -> Self {
+        Self([OFlt(xy[0]), OFlt(xy[1])])
     }
 }
 
@@ -92,13 +96,26 @@ fn y_extrap(p1: Pt, p2: Pt, x: OFlt<f64>, right: bool) -> OFlt<f64> {
 
 /* Triangle implementation */
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Triag([Pt; 3]);
 
 impl Triag {
-    pub fn new(mut pts: [Pt; 3]) -> Self {
+    pub fn new(v1: impl Into<Pt>, v2: impl Into<Pt>, v3: impl Into<Pt>) -> Self {
+        let mut pts = [v1.into(), v2.into(), v3.into()];
         pts.sort();
         Self(pts)
+    }
+
+    pub fn from_pt_arr(mut pts: [Pt; 3]) -> Self {
+        pts.sort();
+        Self(pts)
+    }
+}
+
+impl<P: Into<Pt>> From<[P; 3]> for Triag {
+    fn from(t: [P; 3]) -> Self {
+        let t = t.map(|v| v.into());
+        Self::from_pt_arr(t)
     }
 }
 
@@ -134,7 +151,7 @@ fn clockwise_sign(polygon: &[Pt]) -> PSign {
 
 /* Linked point implementation */
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Clone)]
 struct LPt {
     pub p: Pt,
     pub prev: Option<Rc<RefCell<LPt>>>,
@@ -155,6 +172,32 @@ impl LPt {
             (p, Some(p1), Some(p2)) => PType::from_triplet(p, p1.borrow().p, p2.borrow().p),
             _ => Err(TriangulationError::NoPointType(self.p)),
         }
+    }
+}
+
+impl PartialEq for LPt {
+    fn eq(&self, other: &Self) -> bool {
+        self.p == other.p
+    }
+}
+
+impl Eq for LPt {}
+
+impl PartialOrd for LPt {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.p.partial_cmp(&other.p)
+    }
+}
+
+impl Ord for LPt {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.p.cmp(&other.p)
+    }
+}
+
+impl Display for LPt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.p.fmt(f)
     }
 }
 
@@ -272,7 +315,7 @@ impl BackChain {
             if clockwise_sign(&pts) == PSign::C {
                 triplet[0].borrow_mut().next = Some(triplet[2].clone());
                 triplet[2].borrow_mut().prev = Some(triplet[0].clone());
-                triag_list.push(Triag::new(pts));
+                triag_list.push(Triag::from_pt_arr(pts));
             } else {
                 break;
             }
@@ -442,13 +485,16 @@ fn handle_next(
     y_struct: &mut YStruct,
     triag_list: &mut Vec<Triag>,
 ) -> Result<(), TriangulationError> {
+    println!("START HANDLE NEXT");
     let (lp, ptype, r_edges) = match y_struct.ordered_points.iter().next() {
         Some((lp, r_edges)) => (lp.clone(), lp.borrow().get_type()?, r_edges.clone()),
-        _ => unreachable!(),
+        _ => unreachable!("DDDDD"),
     };
-    y_struct.ordered_points.remove(&lp);
-
+    println!("START HANDLE NEXT2");
+    y_struct.ordered_points.remove(lp.as_ref());
+    println!("START HANDLE NEXT3");
     let p = lp.borrow().p;
+    println!("Handling point {p}");
     let lp1 = match &lp.borrow().prev {
         Some(lp1) => lp1.clone(),
         _ => unreachable!(),
@@ -460,6 +506,7 @@ fn handle_next(
 
     match ptype {
         PType::Start => {
+            println!("Handling Start Point {p}");
             *y_struct.x.borrow_mut() = p.x();
             let backchain = Rc::new(RefCell::new(BackChain::new(p)));
             // Create new bottom and top
@@ -522,10 +569,7 @@ fn handle_next(
                 return Err(TriangulationError::Overlap(ptype, p));
             }
 
-            let mut b = bot.borrow_mut();
-            let mut t = top.borrow_mut();
-
-            // Link nested edges
+            // Link nested edges if exists and set in-interval flags appropriately
             if let Some(bot_bot) = &bot_bot {
                 let mut b = bot.borrow_mut();
                 let mut bb = bot_bot.borrow_mut();
@@ -535,6 +579,8 @@ fn handle_next(
                 if b.will_overlap_bot() {
                     return Err(TriangulationError::Overlap(ptype, p));
                 }
+            }else {
+                bot.borrow_mut().bof_in_interval = true;
             }
             if let Some(top_top) = &top_top {
                 let mut t = top.borrow_mut();
@@ -545,6 +591,8 @@ fn handle_next(
                 if t.will_overlap_top() {
                     return Err(TriangulationError::Overlap(ptype, p));
                 }
+            } else {
+                top.borrow_mut().bof_in_interval = false;
             }
 
             if let (Some(bot_bot), Some(top_top)) = (bot_bot, top_top) {
@@ -561,20 +609,21 @@ fn handle_next(
                     // Attach new bottom backchain
                     let bc_bot = Rc::new(RefCell::new(bc_bot));
                     bb.backchain = bc_bot.clone();
-                    b.backchain = bc_bot;
+                    bot.borrow_mut().backchain = bc_bot;
 
                     // Attach new top backcahin
                     let bc_top = Rc::new(RefCell::new(bc_top));
                     tt.backchain = bc_top.clone();
-                    t.backchain = bc_top;
+                    top.borrow_mut().backchain = bc_top;
                 }
             }
 
             // Finally insert newly created edges into Y-structure.
-            y_struct.active_edges.insert(bot.clone());
-            y_struct.active_edges.insert(top.clone());
+            y_struct.active_edges.insert(bot);
+            y_struct.active_edges.insert(top);
         }
         PType::Bend => {
+            println!("Handling Bend Point {p}");
             *y_struct.x.borrow_mut() = p.x();
             let edge = &r_edges[0];
             let rlp = if lp1.borrow().p >= lp2.borrow().p {
@@ -602,6 +651,7 @@ fn handle_next(
                 .or_insert(vec![edge.clone()]);
         }
         PType::End => {
+            println!("Handling End Point {p}");
             let bot = &r_edges[0];
             let top = &r_edges[1];
 
@@ -654,8 +704,9 @@ fn handle_next(
 }
 
 pub fn triangulate_polygon_set(
-    poly_set: &[&[impl Into<Pt> + Clone]],
+    poly_set: &Vec<Vec<impl Into<Pt> + Clone>>,
 ) -> Result<Vec<Triag>, TriangulationError> {
+    println!("Start ALG");
     let mut discovered_points: HashSet<Pt> = HashSet::new();
 
     let mut valid_pt = |pt: Pt| {
@@ -680,6 +731,18 @@ pub fn triangulate_polygon_set(
         let pt = polygon[0].clone().into();
         valid_pt(pt)?;
         let first = LPt::new(pt);
+        match PType::from_triplet(
+            pt,
+            polygon[1].clone().into(),
+            polygon[polygon.len() - 1].clone().into(),
+        )? {
+            PType::Start => {
+                println!("Start point {pt}");
+                y_struct.ordered_points.insert(first.clone(), vec![]);
+            }
+            _ => {}
+        }
+
         let mut curr = first.clone();
         for i in 1..polygon.len() {
             let pt = polygon[i].clone().into();
@@ -687,14 +750,16 @@ pub fn triangulate_polygon_set(
             let new_lp = LPt::new(pt);
             curr.borrow_mut().next = Some(new_lp.clone());
             new_lp.borrow_mut().prev = Some(curr);
+            println!("Point {pt}");
             match PType::from_triplet(
-                polygon[i].clone().into(),
+                pt,
                 polygon[(i + polygon.len() - 1) % polygon.len()]
                     .clone()
                     .into(),
                 polygon[(i + 1) % polygon.len()].clone().into(),
             )? {
                 PType::Start => {
+                    println!("Start point {pt}");
                     y_struct.ordered_points.insert(new_lp.clone(), vec![]);
                 }
                 _ => {}
