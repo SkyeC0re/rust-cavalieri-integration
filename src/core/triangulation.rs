@@ -590,9 +590,9 @@ fn handle_next(
                 bot.borrow_mut().bof_in_interval = true;
             }
             if let Some(top_top) = &top_top {
-                top.borrow_mut().b_partner = Some(top_top.clone());
+                top.borrow_mut().t_partner = Some(top_top.clone());
                 top.borrow_mut().bof_in_interval = !top_top.borrow().bof_in_interval;
-                top_top.borrow_mut().t_partner = Some(top.clone());
+                top_top.borrow_mut().b_partner = Some(top.clone());
                 // Ensure top will not overlap its top partner
                 if top.borrow().will_overlap_top() {
                     return Err(TriangulationError::Overlap(ptype, p));
@@ -723,7 +723,7 @@ fn handle_next(
 }
 
 pub fn triangulate_polygon_set(
-    poly_set: &Vec<Vec<impl Into<Pt> + Clone>>,
+    poly_set: Vec<Vec<impl Into<Pt>>>,
 ) -> Result<Vec<Triag>, TriangulationError> {
     let mut discovered_points: HashSet<Pt> = HashSet::new();
 
@@ -746,13 +746,14 @@ pub fn triangulate_polygon_set(
         if polygon.len() < 3 {
             return Err(TriangulationError::NoPolygon);
         }
-        let pt = polygon[0].clone().into();
+        let polygon: Vec<Pt> = polygon.into_iter().map(|v| v.into()).collect();
+        let pt = polygon[0];
         valid_pt(pt)?;
         let first = LPt::new(pt);
         match PType::from_triplet(
             pt,
-            polygon[1].clone().into(),
-            polygon[polygon.len() - 1].clone().into(),
+            polygon[1],
+            polygon[polygon.len() - 1],
         )? {
             PType::Start => {
                 y_struct.ordered_points.insert(first.clone(), vec![]);
@@ -762,17 +763,15 @@ pub fn triangulate_polygon_set(
 
         let mut curr = first.clone();
         for i in 1..polygon.len() {
-            let pt = polygon[i].clone().into();
+            let pt = polygon[i];
             valid_pt(pt)?;
             let new_lp = LPt::new(pt);
             curr.borrow_mut().next = Some(new_lp.clone());
             new_lp.borrow_mut().prev = Some(curr);
             match PType::from_triplet(
                 pt,
-                polygon[(i + polygon.len() - 1) % polygon.len()]
-                    .clone()
-                    .into(),
-                polygon[(i + 1) % polygon.len()].clone().into(),
+                polygon[(i + polygon.len() - 1) % polygon.len()],
+                polygon[(i + 1) % polygon.len()],
             )? {
                 PType::Start => {
                     y_struct.ordered_points.insert(new_lp.clone(), vec![]);

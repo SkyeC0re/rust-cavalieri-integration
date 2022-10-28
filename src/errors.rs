@@ -90,7 +90,7 @@ impl From<IntegError> for Display2DError {
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum TriangulationError {
     #[error("Overlap found during evaluation of {0:?} point {1}")]
     Overlap(PType, Pt),

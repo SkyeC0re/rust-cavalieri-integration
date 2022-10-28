@@ -1,9 +1,12 @@
-use cavint::core::triangulation::{triangulate_polygon_set, PType, Pt, Triag};
+use cavint::{
+    core::triangulation::{triangulate_polygon_set, PType, Pt, Triag},
+    errors::TriangulationError,
+};
 
 use crate::setup;
 
 fn test_triangulation(p_set: Vec<Vec<impl Into<Pt> + Clone>>, mut expected: Vec<Triag>) {
-    let mut actual = triangulate_polygon_set(&p_set).unwrap();
+    let mut actual = triangulate_polygon_set(p_set).unwrap();
     actual.sort();
     expected.sort();
     assert_eq!(actual, expected)
@@ -58,7 +61,7 @@ fn square() {
     )
 }
 
-/* Polygon triangulation tests */
+/* Positive Polygon triangulation tests */
 
 fn p1() -> Vec<Pt> {
     vec![
@@ -114,7 +117,6 @@ fn p2_triangulation() {
     );
 }
 
-
 #[test]
 fn p1_in_p2_triangulation() {
     setup();
@@ -140,5 +142,90 @@ fn p1_in_p2_triangulation() {
             Triag::new(o[6], o[5], i[1]),
             Triag::new(o[6], i[1], o[7]),
         ],
+    );
+}
+
+/* Negative polygon triangulation tests */
+
+#[test]
+fn nan_triangulation() {
+    setup();
+    let res = triangulate_polygon_set(vec![vec![
+        Pt::new(2f64, 1.5),
+        Pt::new(8f64, 3f64),
+        Pt::new(4f64, 5f64),
+        Pt::new(3f64, 4f64),
+        Pt::new(5f64, f64::NAN),
+    ]]);
+
+    assert_eq!(res, Err(TriangulationError::NonFiniteInputError));
+}
+
+#[test]
+fn infinity_triangulation() {
+    setup();
+    let res = triangulate_polygon_set(vec![vec![
+        Pt::new(2f64, 1.5),
+        Pt::new(8f64, 3f64),
+        Pt::new(f64::INFINITY, 5f64),
+        Pt::new(3f64, 4f64),
+        Pt::new(5f64, 3f64),
+    ]]);
+
+    assert_eq!(res, Err(TriangulationError::NonFiniteInputError));
+}
+
+#[test]
+fn duplicate_point_triangulation() {
+    setup();
+    let res = triangulate_polygon_set(vec![
+        vec![Pt::new(2f64, 1.5), Pt::new(4f64, 0f64), Pt::new(2f64, 3f64)],
+        vec![
+            Pt::new(0f64, 0f64),
+            Pt::new(0f64, 1f64),
+            Pt::new(2f64, 3f64),
+        ],
+    ]);
+
+    assert_eq!(
+        res,
+        Err(TriangulationError::DuplicatePoint(Pt::new(2f64, 3f64)))
+    );
+}
+
+#[test]
+fn degeneracy1() {
+    setup();
+    let res = triangulate_polygon_set(vec![vec![
+        Pt::new(0f64, 0f64),
+        Pt::new(1f64, 0f64),
+        Pt::new(2f64, 0f64),
+    ]]);
+
+    assert_eq!(
+        res,
+        Err(TriangulationError::Overlap(
+            PType::Start,
+            Pt::new(0f64, 0f64)
+        ))
+    );
+}
+
+#[test]
+fn degeneracy2() {
+    setup();
+    let res = triangulate_polygon_set(vec![vec![
+        Pt::new(0f64, 0f64),
+        Pt::new(1f64, 0f64),
+        Pt::new(0f64, 1f64),
+        Pt::new(1f64, 1f64),
+    ]]);
+
+    assert_eq!(
+        res,
+        Err(TriangulationError::Overlap(
+            PType::Start,
+            Pt::new(0f64, 1f64)
+        ))
     );
 }
