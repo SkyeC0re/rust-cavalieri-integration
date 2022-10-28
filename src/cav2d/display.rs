@@ -22,11 +22,30 @@ pub struct CavDisplay {
     #[pyo3(get)]
     pub cav_grid: Vec<Vec<f64>>,
     #[pyo3(get)]
-    pub xv: Vec<f64>,
-    #[pyo3(get)]
-    pub dgv: Vec<f64>,
-    #[pyo3(get)]
     pub integ_value: Option<(f64, f64)>,
+}
+
+impl CavDisplay {
+    pub fn new(
+        f: impl Fn(f64) -> f64,
+        c: impl Fn(f64) -> f64,
+        a: f64,
+        b: f64,
+        integ_value: Option<(f64, f64)>,
+        cfg: &DisplayConfig,
+    ) -> Self {
+        let xv = (cfg.x_res_gen)(a, b);
+        let yrv = (cfg.y_res_gen)(a, b);
+
+        let g = |x| x - f(c(x));
+
+        CavDisplay {
+            a,
+            b,
+            cav_grid: gen_display_grid_cav(&f, &c, &xv[..], &yrv[..]),
+            integ_value: None,
+        }
+    }
 }
 
 pub struct DisplayConfig {
@@ -51,91 +70,18 @@ impl Default for DisplayConfig {
     }
 }
 
-impl DisplayConfig {
-    pub fn display(
-        &self,
-        f: impl Fn(AD) -> AD,
-        c: impl Fn(AD) -> AD,
-        a: f64,
-        b: f64,
-    ) -> Result<CavDisplay, Display2DError> {
-        let xv = (self.x_res_gen)(a, b);
-        let yrv = (self.y_res_gen)(a, b);
-
-        let g = |x: AD| x - f(c(x));
-
-        let dgv = xv.iter().copied().map(|x| g(AD(x, 1f64)).0).collect();
-
-        let integ_value = if self.compute_integ {
-            Some(gauss_kronrod_quadrature(
-                |x| {
-                    let y = f(AD(x, 1f64));
-                    y.0 * (1f64 - c(y).1)
-                },
-                a,
-                b,
-                self.tol,
-                Some(self.max_int_iters),
-            )?)
-        } else {
-            None
-        };
-
-        Ok(CavDisplay {
-            a,
-            b,
-            cav_grid: gen_display_grid_cav(&f, &c, &xv[..], &yrv[..])?,
-            xv,
-            dgv,
-            integ_value,
-        })
-    }
-}
-
-pub struct TRegion {
-    pub c: Box<dyn Fn(f64) -> f64>,
-    pub a: f64,
-    pub b: f64,
-    pub xv: Vec<f64>,
-}
-
 pub fn gen_display_grid_cav(
-    f: impl Fn(AD) -> AD,
-    c: impl Fn(AD) -> AD,
+    f: impl Fn(f64) -> f64,
+    c: impl Fn(f64) -> f64,
     xv: &[f64],
     yrv: &[f64],
-) -> Result<Vec<Vec<f64>>, Display2DError> {
-    if yrv.len() < 2 {
-        return Err(Display2DError::BadInput(
-            "Expected at least 2 point in the y resolution vector.".to_string(),
-        ));
-    }
-    if yrv[0] != 0f64 {
-        return Err(Display2DError::BadInput(format!(
-            "Expected y ratio to start at 0.0, but found {}",
-            yrv[0]
-        )));
-    }
-    if yrv[yrv.len() - 1] != 1f64 {
-        return Err(Display2DError::BadInput(format!(
-            "Expected y ratio to end at 1.0, but found {}",
-            yrv[yrv.len() - 1]
-        )));
-    }
-
-    let c_0 = c(ZERO).0;
-    let c = |y: f64| c(AD(y, 0f64)).0 - c_0;
-    let f = |x: f64| f(AD(x, 0f64)).0;
-
+) -> Vec<Vec<f64>> {
+    let c_0 = c(0f64);
+    let c = |y: f64| c(y) - c_0;
     let g = |x: f64| x - c(f(x));
     let xrv: Vec<f64> = xv.into_iter().copied().map(|x| g(x)).collect();
 
-    if !is_strictly_monotone(&xrv[..]) {
-        return Err(Display2DError::NonMonotone);
-    }
-
-    Ok(yrv
-        .into_iter()
+    yrv.into_iter()
         .copied()
         .map(|yr| {
             xrv.iter()
@@ -143,24 +89,87 @@ pub fn gen_display_grid_cav(
                 .map(|(&xr, &x)| xr + c(yr * f(x)))
                 .collect::<Vec<_>>()
         })
-        .collect())
+        .collect()
 }
 
 pub fn gen_display_interval_cav(
     f: impl Fn(AD) -> AD,
     c: impl Fn(AD) -> AD,
-    a: f64,
-    b: f64,
+    intervals: Vec<[f64; 2]>,
     cfg: DisplayConfig,
 ) -> Result<Vec<CavDisplay>, Display2DError> {
-    let g = |x: AD| x - f(c(x));
-    let xv = (cfg.x_res_gen)(a, b);
-    let mut splits = split_translational(&f, g, &xv[..], cfg.tol, cfg.max_rf_iters)?;
-    splits.insert(0, a);
-    splits.push(b);
-    let mut displays = Vec::with_capacity(splits.len() - 1);
-    for i in 1..splits.len() {
-        displays.push(cfg.display(&f, &c, splits[i - 1], splits[i])?);
+    let mut displays = vec![];
+    let g = |x: AD| x - c(f(x));
+    for interval in intervals {
+        let a = interval[0];
+        let b = interval[1];
+        let xv = (cfg.x_res_gen)(a, b);
+        let mut splits = split_strictly_monotone(g, &xv[..], cfg.tol, cfg.max_rf_iters)?;
+        splits.insert(0, a);
+        splits.push(b);
+        for i in 1..splits.len() {
+            let c = generate_c(&f, g, &xv)?;
+            let integ_value = if cfg.compute_integ {
+                Some(gauss_kronrod_quadrature(
+                    |x| f(AD(x, 1f64)).0 * g(AD(x, 1f64)).1,
+                    a,
+                    b,
+                    cfg.tol,
+                    Some(cfg.max_int_iters),
+                )?)
+            } else {
+                None
+            };
+            displays.push(CavDisplay::new(
+                |x| f(AD(x, 0f64)).0,
+                c,
+                splits[i - 1],
+                splits[i],
+                integ_value,
+                &cfg,
+            ));
+        }
+    }
+    Ok(displays)
+}
+
+pub fn gen_display_rs(
+    f: impl Fn(AD) -> AD,
+    g: impl Fn(AD) -> AD,
+    intervals: Vec<[f64; 2]>,
+    cfg: DisplayConfig,
+) -> Result<Vec<CavDisplay>, Display2DError> {
+    let mut displays = vec![];
+    for interval in intervals {
+        let a = interval[0];
+        let b = interval[1];
+        let xv = (cfg.x_res_gen)(a, b);
+        let mut splits = split_translational(&f, &g, &xv[..], cfg.tol, cfg.max_rf_iters)?;
+        splits.insert(0, a);
+        splits.push(b);
+
+        for i in 1..splits.len() {
+            let c = generate_c(&f, &g, &xv)?;
+            let integ_value = if cfg.compute_integ {
+                Some(gauss_kronrod_quadrature(
+                    |x| f(AD(x, 0f64)).0 * g(AD(x, 1f64)).1,
+                    a,
+                    b,
+                    cfg.tol,
+                    Some(cfg.max_int_iters),
+                )?)
+            } else {
+                None
+            };
+            displays.push(CavDisplay::new(
+                |x| f(AD(x, 0f64)).0,
+                c,
+                splits[i - 1],
+                splits[i],
+                integ_value,
+                &cfg,
+            ));
+        }
     }
     Ok(displays)
 }
@@ -300,12 +309,9 @@ pub fn split_translational(
 pub fn generate_c(
     f: impl Fn(AD) -> AD,
     g: impl Fn(AD) -> AD,
-    a: f64,
-    b: f64,
-    x_res_gen: impl Fn(f64, f64) -> Vec<f64>,
-    _tol: f64,
-) -> Result<TRegion, Display2DError> {
-    let mut xv = x_res_gen(a, b);
+    xv: &[f64],
+) -> Result<impl Fn(f64) -> f64, Display2DError> {
+    let mut xv: Vec<f64> = xv.into_iter().copied().collect();
     let yv: Vec<f64> = xv.iter().map(|x| f(AD(*x, 0f64)).0).collect();
 
     if !is_strictly_monotone(&yv[..]) {
@@ -323,10 +329,5 @@ pub fn generate_c(
         .for_each(|(cy, x)| *cy = *x - *cy);
 
     let c = cubic_spline(&yv[..], &cyv[..]);
-    Ok(TRegion {
-        c: Box::new(move |y: f64| c.eval(y)),
-        a,
-        b,
-        xv,
-    })
+    Ok(move |y: f64| c.eval(y))
 }

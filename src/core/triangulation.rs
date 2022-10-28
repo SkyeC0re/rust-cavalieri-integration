@@ -245,7 +245,7 @@ impl BackChain {
         }
         // New top chain with new rightmost point `p`.
         let mut t_chain = Self::new(p);
-        // If old rm was the tail, reattach detached old rightmost point.
+        // If old rm was the tail, replace with the duplicate.
         t_chain.tail = if Rc::ptr_eq(&self.tail, &self.rm) {
             old_rm_detached.clone()
         } else {

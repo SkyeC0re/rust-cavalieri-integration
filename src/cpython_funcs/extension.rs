@@ -8,7 +8,7 @@ use crate::core::parsing::compile_expression;
 use crate::core::parsing::DefaultContext;
 
 #[pyfunction]
-pub fn display_cav(f_expr: String, c_expr: String, a: f64, b: f64) -> PyResult<Vec<CavDisplay>> {
+pub fn display_cav(f_expr: String, c_expr: String, intervals: Vec<[f64; 2]>) -> PyResult<Vec<CavDisplay>> {
     let mut f_context = DefaultContext::default();
     f_context.add_var("x", 0);
     let f_expr = compile_expression(&f_expr, f_context)?;
@@ -19,8 +19,7 @@ pub fn display_cav(f_expr: String, c_expr: String, a: f64, b: f64) -> PyResult<V
     Ok(gen_display_interval_cav(
         move |x| f_expr.eval(&[x]),
         move |y| c_expr.eval(&[y]),
-        a,
-        b,
+        intervals,
         DisplayConfig::default(),
     )?)
 }
