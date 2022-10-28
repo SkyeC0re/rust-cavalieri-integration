@@ -5,8 +5,14 @@ use std::{
 };
 
 use nom::{
-    branch::alt, bytes::complete::tag, character::complete::alpha1, combinator::verify,
-    error::Error, multi::fold_many0, number::complete::double, IResult,
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::alpha1,
+    combinator::{opt, verify},
+    error::Error,
+    multi::fold_many0,
+    number::complete::double,
+    IResult,
 };
 
 use crate::errors::ParsedFuncError;
@@ -63,9 +69,9 @@ impl<'a, const I: usize, T: BasicArithmetic> Expr<'a, I, T> {
     }
 }
 
-pub trait Parsable: BasicArithmetic + From<f64> {}
+pub trait ArithParsable: BasicArithmetic + From<f64> {}
 
-fn parse_parenth<'a, 'b, const I: usize, T: Parsable>(
+fn parse_parenth<'a, 'b, const I: usize, T: ArithParsable>(
     expr: &'b str,
     context: &HashMap<String, ContextElement<'a, T>>,
 ) -> IResult<&'b str, Expr<'a, I, T>, String> {
@@ -92,7 +98,7 @@ fn parse_name(expr: &str) -> IResult<&str, &str, String> {
     }
 }
 
-fn parse_func<'a, 'b, const I: usize, T: Parsable>(
+fn parse_func<'a, 'b, const I: usize, T: ArithParsable>(
     expr: &'b str,
     context: &HashMap<String, ContextElement<'a, T>>,
 ) -> IResult<&'b str, Expr<'a, I, T>, String> {
@@ -127,7 +133,7 @@ fn parse_func<'a, 'b, const I: usize, T: Parsable>(
     Ok((expr, Expr::UOp(Box::new(res), func)))
 }
 
-fn parse_var<'a, 'b, const I: usize, T: Parsable>(
+fn parse_var<'a, 'b, const I: usize, T: ArithParsable>(
     expr: &'b str,
     context: &HashMap<String, ContextElement<'a, T>>,
 ) -> IResult<&'b str, Expr<'a, I, T>, String> {
@@ -146,7 +152,7 @@ fn parse_var<'a, 'b, const I: usize, T: Parsable>(
     Ok((expr, res))
 }
 
-fn parse_const<'a, 'b, const I: usize, T: Parsable>(
+fn parse_const<'a, 'b, const I: usize, T: ArithParsable>(
     expr: &'b str,
 ) -> IResult<&'b str, Expr<'a, I, T>, String> {
     match double::<_, Error<&str>>(expr) {
@@ -155,7 +161,7 @@ fn parse_const<'a, 'b, const I: usize, T: Parsable>(
     }
 }
 
-fn parse_pow<'a, 'b, const I: usize, T: Parsable>(
+fn parse_pow<'a, 'b, const I: usize, T: ArithParsable>(
     expr: &'b str,
     context: &HashMap<String, ContextElement<'a, T>>,
 ) -> IResult<&'b str, Expr<'a, I, T>, String> {
@@ -183,7 +189,7 @@ fn parse_powi<'a>(expr: &'a str) -> IResult<&'a str, i32, String> {
         .map_err(|_| nom::Err::Error(format!("Could not build a valid i32 at '...{expr}'")))
 }
 
-fn parse_term<'a, 'b, const I: usize, T: Parsable>(
+fn parse_term<'a, 'b, const I: usize, T: ArithParsable>(
     expr: &'b str,
     context: &HashMap<String, ContextElement<'a, T>>,
     allow_neg: bool,
@@ -218,7 +224,7 @@ fn parse_term<'a, 'b, const I: usize, T: Parsable>(
     Ok(ex_term)
 }
 
-fn parse_terms_mul<'a, 'b, const I: usize, T: Parsable>(
+fn parse_terms_mul<'a, 'b, const I: usize, T: ArithParsable>(
     expr: &'b str,
     context: &HashMap<String, ContextElement<'a, T>>,
     allow_neg: bool,
@@ -237,7 +243,7 @@ fn parse_terms_mul<'a, 'b, const I: usize, T: Parsable>(
     Ok(ex_terms)
 }
 
-fn parse_expression<'a, 'b, const I: usize, T: Parsable>(
+fn parse_expression<'a, 'b, const I: usize, T: ArithParsable>(
     expr: &'b str,
     context: &HashMap<String, ContextElement<'a, T>>,
 ) -> IResult<&'b str, Expr<'a, I, T>, String> {
@@ -255,13 +261,13 @@ fn parse_expression<'a, 'b, const I: usize, T: Parsable>(
     Ok(ex_terms)
 }
 
-pub enum ContextElement<'a, T: Parsable> {
+pub enum ContextElement<'a, T: ArithParsable> {
     Const(T),
     Var(usize),
     UOp(&'a dyn Fn(T) -> T),
 }
 
-pub fn compile_expression<'a, const I: usize, T: Parsable>(
+pub fn compile_expression<'a, const I: usize, T: ArithParsable>(
     expr: &str,
     context: impl AsRef<HashMap<String, ContextElement<'a, T>>>,
 ) -> Result<Expr<'a, I, T>, ParsedFuncError> {
@@ -285,6 +291,49 @@ pub fn compile_expression<'a, const I: usize, T: Parsable>(
     Ok(term.1)
 }
 
+fn parse_2_elem_f64_arr(expr: &str) -> IResult<&str, [f64; 2], String> {
+    let expr = match tag::<_, _, Error<&str>>("[")(expr) {
+        Ok((expr, _)) => expr,
+        Err(e) => return Err(e.map(|_| format!("Expected opening brakcet at: '...{}'", expr))),
+    };
+    let (expr, v1) = match double::<_, Error<&str>>(expr) {
+        Ok(res) => res,
+        Err(e) => return Err(e.map(|_| format!("Expected closing f64 at: '...{}'", expr))),
+    };
+    let expr = match tag::<_, _, Error<&str>>(",")(expr) {
+        Ok((expr, _)) => expr,
+        Err(e) => return Err(e.map(|_| format!("Expected comma at: '...{}'", expr))),
+    };
+    let (expr, v2) = match double::<_, Error<&str>>(expr) {
+        Ok(res) => res,
+        Err(e) => return Err(e.map(|_| format!("Expected closing f64 at: '...{}'", expr))),
+    };
+    let expr = match tag::<_, _, Error<&str>>("]")(expr) {
+        Ok((expr, _)) => expr,
+        Err(e) => return Err(e.map(|_| format!("Expected closing bracket at: '...{}'", expr))),
+    };
+    Ok((expr, [v1, v2]))
+}
+
+fn parse_list_of_2_elem_f64_arr(expr: &str) -> IResult<&str, Vec<[f64; 2]>, String> {
+    let (mut expr, v) = parse_2_elem_f64_arr(expr)?;
+    let mut elems = vec![v];
+
+    while let Ok((nexpr, _)) = tag::<_, _, Error<&str>>(",")(expr) {
+        let (nexpr, v) = parse_2_elem_f64_arr(nexpr)?;
+        expr = nexpr;
+        elems.push(v);
+    }
+    Ok((expr, elems))
+}
+
+pub fn compile_interval_list(expr: &str) -> Result<Vec<[f64; 2]>, ParsedFuncError> {
+    let mut expr = expr.to_string();
+    expr.retain(|c| !c.is_whitespace());
+    let list = parse_list_of_2_elem_f64_arr(&expr)?;
+    Ok(list.1)
+}
+
 impl BasicArithmetic for AD {
     fn pow(self, rhs: Self) -> Self {
         self.pow(rhs)
@@ -294,7 +343,7 @@ impl BasicArithmetic for AD {
         self.powi(n)
     }
 }
-impl Parsable for AD {}
+impl ArithParsable for AD {}
 
 impl BasicArithmetic for f64 {
     fn pow(self, rhs: Self) -> Self {
@@ -305,11 +354,11 @@ impl BasicArithmetic for f64 {
         f64::powi(self, n)
     }
 }
-impl Parsable for f64 {}
+impl ArithParsable for f64 {}
 
-pub struct DefaultContext<'a, T: Parsable>(HashMap<String, ContextElement<'a, T>>);
+pub struct DefaultContext<'a, T: ArithParsable>(HashMap<String, ContextElement<'a, T>>);
 
-impl<'a, T: Parsable> DefaultContext<'a, T> {
+impl<'a, T: ArithParsable> DefaultContext<'a, T> {
     pub fn add_var(&mut self, name: &str, loc: usize) {
         self.0.insert(name.to_string(), ContextElement::Var(loc));
     }
@@ -323,7 +372,7 @@ impl<'a, T: Parsable> DefaultContext<'a, T> {
     }
 }
 
-impl<'a, T: Parsable> AsRef<HashMap<String, ContextElement<'a, T>>> for DefaultContext<'a, T> {
+impl<'a, T: ArithParsable> AsRef<HashMap<String, ContextElement<'a, T>>> for DefaultContext<'a, T> {
     fn as_ref(&self) -> &HashMap<String, ContextElement<'a, T>> {
         &self.0
     }
