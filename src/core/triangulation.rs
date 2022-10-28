@@ -8,6 +8,7 @@ use std::{
     rc::Rc,
 };
 
+use log::debug;
 use ordered_float::OrderedFloat as OFlt;
 
 use crate::errors::TriangulationError;
@@ -77,7 +78,7 @@ impl From<[f64; 2]> for Pt {
     }
 }
 
-fn y_extrap(p1: Pt, p2: Pt, x: OFlt<f64>, right: bool) -> OFlt<f64> {
+pub fn y_extrap(p1: Pt, p2: Pt, x: OFlt<f64>, right: bool) -> OFlt<f64> {
     let (p1, p2) = if p1 > p2 { (p2, p1) } else { (p1, p2) };
 
     if x == p1.x() && x == p2.x() {
@@ -116,6 +117,12 @@ impl<P: Into<Pt>> From<[P; 3]> for Triag {
     fn from(t: [P; 3]) -> Self {
         let t = t.map(|v| v.into());
         Self::from_pt_arr(t)
+    }
+}
+
+impl Display for Triag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}, {}, {}]", self.0[0], self.0[1], self.0[2])
     }
 }
 
@@ -252,7 +259,7 @@ impl BackChain {
         (b_chain, t_chain)
     }
 
-    pub fn merge(b_chain: &mut Self, t_chain: &mut Self, p: Pt) -> Self {
+    pub fn merge(b_chain: &Self, t_chain: &Self, p: Pt) -> Self {
         let mut merged = Self::new(p);
 
         // Attach bottom chain to new rightmost point `p`
@@ -284,7 +291,7 @@ impl BackChain {
 
     fn node_triangulate(from_node: &Rc<RefCell<LPt>>, backward: bool, triag_list: &mut Vec<Triag>) {
         loop {
-            let mut triplet = if backward {
+            let triplet = if backward {
                 let n3 = from_node;
                 if let Some(n2) = &n3.borrow().prev {
                     if let Some(n1) = &n2.borrow().prev {
@@ -315,7 +322,9 @@ impl BackChain {
             if clockwise_sign(&pts) == PSign::C {
                 triplet[0].borrow_mut().next = Some(triplet[2].clone());
                 triplet[2].borrow_mut().prev = Some(triplet[0].clone());
-                triag_list.push(Triag::from_pt_arr(pts));
+                let triag = Triag::from_pt_arr(pts);
+                debug!("- Triangulated {}", &triag);
+                triag_list.push(triag);
             } else {
                 break;
             }
@@ -339,11 +348,6 @@ impl BackChain {
 
 /* Y-structure implementation */
 
-// enum RelevantEdges {
-//     None,
-//     One(Rc<RefCell<YEdge>>),
-//     Two(Rc<RefCell<YEdge>>, Rc<RefCell<YEdge>>),
-// }
 struct YStruct {
     x: Rc<RefCell<Of64>>,
     active_edges: BTreeSet<Rc<RefCell<YEdge>>>,
@@ -473,7 +477,13 @@ impl Display for YEdge {
             true => bc.head.borrow().p,
             false => bc.tail.borrow().p,
         };
-        write!(f, "{}--{}", lpt, self.rpt,)
+        write!(
+            f,
+            "{}--{}[{}]",
+            lpt,
+            self.rpt,
+            if self.bof_in_interval { "-" } else { "+" }
+        )
     }
 }
 
@@ -485,16 +495,12 @@ fn handle_next(
     y_struct: &mut YStruct,
     triag_list: &mut Vec<Triag>,
 ) -> Result<(), TriangulationError> {
-    println!("START HANDLE NEXT");
     let (lp, ptype, r_edges) = match y_struct.ordered_points.iter().next() {
         Some((lp, r_edges)) => (lp.clone(), lp.borrow().get_type()?, r_edges.clone()),
-        _ => unreachable!("DDDDD"),
+        _ => unreachable!(),
     };
-    println!("START HANDLE NEXT2");
     y_struct.ordered_points.remove(lp.as_ref());
-    println!("START HANDLE NEXT3");
     let p = lp.borrow().p;
-    println!("Handling point {p}");
     let lp1 = match &lp.borrow().prev {
         Some(lp1) => lp1.clone(),
         _ => unreachable!(),
@@ -503,10 +509,9 @@ fn handle_next(
         Some(lp2) => lp2.clone(),
         _ => unreachable!(),
     };
-
+    debug!("Handling {ptype:?} point {p}");
     match ptype {
         PType::Start => {
-            println!("Handling Start Point {p}");
             *y_struct.x.borrow_mut() = p.x();
             let backchain = Rc::new(RefCell::new(BackChain::new(p)));
             // Create new bottom and top
@@ -522,6 +527,9 @@ fn handle_next(
 
             let bot = Rc::new(RefCell::new(bot));
             let top = Rc::new(RefCell::new(top));
+
+            bot.borrow_mut().t_partner = Some(top.clone());
+            top.borrow_mut().b_partner = Some(bot.clone());
 
             // Add bottom as relevant edge to its right point.
             y_struct
@@ -571,24 +579,22 @@ fn handle_next(
 
             // Link nested edges if exists and set in-interval flags appropriately
             if let Some(bot_bot) = &bot_bot {
-                let mut b = bot.borrow_mut();
-                let mut bb = bot_bot.borrow_mut();
-                b.b_partner = Some(bot_bot.clone());
-                b.bof_in_interval = !bb.bof_in_interval;
-                bb.t_partner = Some(bot.clone());
-                if b.will_overlap_bot() {
+                bot.borrow_mut().b_partner = Some(bot_bot.clone());
+                bot.borrow_mut().bof_in_interval = !bot_bot.borrow().bof_in_interval;
+                bot_bot.borrow_mut().t_partner = Some(bot.clone());
+                 // Ensure bot will not overlap its bottom partner
+                if bot.borrow().will_overlap_bot() {
                     return Err(TriangulationError::Overlap(ptype, p));
                 }
-            }else {
+            } else {
                 bot.borrow_mut().bof_in_interval = true;
             }
             if let Some(top_top) = &top_top {
-                let mut t = top.borrow_mut();
-                let mut tt = top_top.borrow_mut();
-                t.b_partner = Some(top_top.clone());
-                t.bof_in_interval = !tt.bof_in_interval;
-                tt.t_partner = Some(top.clone());
-                if t.will_overlap_top() {
+                top.borrow_mut().b_partner = Some(top_top.clone());
+                top.borrow_mut().bof_in_interval = !top_top.borrow().bof_in_interval;
+                top_top.borrow_mut().t_partner = Some(top.clone());
+                // Ensure top will not overlap its top partner
+                if top.borrow().will_overlap_top() {
                     return Err(TriangulationError::Overlap(ptype, p));
                 }
             } else {
@@ -600,6 +606,7 @@ fn handle_next(
                 let mut tt = top_top.borrow_mut();
                 // Improper start
                 if bb.bof_in_interval {
+                    debug!("- Improper {ptype:?}");
                     let (mut bc_bot, mut bc_top) = bb.backchain.borrow_mut().split(p);
 
                     // Create convex in-angle triangulations
@@ -615,15 +622,22 @@ fn handle_next(
                     let bc_top = Rc::new(RefCell::new(bc_top));
                     tt.backchain = bc_top.clone();
                     top.borrow_mut().backchain = bc_top;
+                } else {
+                    debug!("- Proper {ptype:?}");
                 }
+            } else {
+                debug!("- Proper {ptype:?}");
             }
-
+            debug!(
+                "- Bottom Outgoing Edge {} | Top Outgoing Edge {}",
+                bot.borrow(),
+                top.borrow()
+            );
             // Finally insert newly created edges into Y-structure.
             y_struct.active_edges.insert(bot);
             y_struct.active_edges.insert(top);
         }
         PType::Bend => {
-            println!("Handling Bend Point {p}");
             *y_struct.x.borrow_mut() = p.x();
             let edge = &r_edges[0];
             let rlp = if lp1.borrow().p >= lp2.borrow().p {
@@ -643,6 +657,8 @@ fn handle_next(
                 return Err(TriangulationError::Overlap(ptype, p));
             }
 
+            debug!("- Updated Edge {}", eb);
+
             // Add as relevant edge to its right point.
             y_struct
                 .ordered_points
@@ -651,15 +667,20 @@ fn handle_next(
                 .or_insert(vec![edge.clone()]);
         }
         PType::End => {
-            println!("Handling End Point {p}");
             let bot = &r_edges[0];
             let top = &r_edges[1];
 
-            let (bot, top) = if bot.borrow().le(&top.borrow()) {
+            let (bot, top) = if bot.borrow().grad() >= top.borrow().grad() {
                 (bot, top)
             } else {
                 (top, bot)
             };
+
+            debug!(
+                "- Bottom Incoming Edge {} | Top Incoming Edge {}",
+                bot.borrow(),
+                top.borrow()
+            );
 
             // Remove edges from Y-structure before advancing x, so as not to invalidate binary tree node ordering.
             y_struct.active_edges.remove(bot);
@@ -671,16 +692,14 @@ fn handle_next(
             let t = top.borrow();
             // Proper end
             if b.bof_in_interval {
+                debug!("- Proper {ptype:?}");
                 let mut bc = t.backchain.borrow_mut();
                 bc.append(p, true);
                 bc.back_triangulate(true, triag_list);
             // Improper end
             } else {
-                let mut bc = BackChain::merge(
-                    &mut b.backchain.borrow_mut(),
-                    &mut t.backchain.borrow_mut(),
-                    p,
-                );
+                debug!("- Improper {ptype:?}");
+                let mut bc = BackChain::merge(&b.backchain.borrow(), &t.backchain.borrow(), p);
                 bc.rm_split_triangulate(triag_list);
                 let bc = Rc::new(RefCell::new(bc));
                 match (&b.b_partner, &t.t_partner) {
@@ -706,7 +725,6 @@ fn handle_next(
 pub fn triangulate_polygon_set(
     poly_set: &Vec<Vec<impl Into<Pt> + Clone>>,
 ) -> Result<Vec<Triag>, TriangulationError> {
-    println!("Start ALG");
     let mut discovered_points: HashSet<Pt> = HashSet::new();
 
     let mut valid_pt = |pt: Pt| {
@@ -737,7 +755,6 @@ pub fn triangulate_polygon_set(
             polygon[polygon.len() - 1].clone().into(),
         )? {
             PType::Start => {
-                println!("Start point {pt}");
                 y_struct.ordered_points.insert(first.clone(), vec![]);
             }
             _ => {}
@@ -750,7 +767,6 @@ pub fn triangulate_polygon_set(
             let new_lp = LPt::new(pt);
             curr.borrow_mut().next = Some(new_lp.clone());
             new_lp.borrow_mut().prev = Some(curr);
-            println!("Point {pt}");
             match PType::from_triplet(
                 pt,
                 polygon[(i + polygon.len() - 1) % polygon.len()]
@@ -759,7 +775,6 @@ pub fn triangulate_polygon_set(
                 polygon[(i + 1) % polygon.len()].clone().into(),
             )? {
                 PType::Start => {
-                    println!("Start point {pt}");
                     y_struct.ordered_points.insert(new_lp.clone(), vec![]);
                 }
                 _ => {}
