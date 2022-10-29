@@ -315,23 +315,57 @@ fn parse_2_elem_f64_arr(expr: &str) -> IResult<&str, [f64; 2], String> {
     Ok((expr, [v1, v2]))
 }
 
-fn parse_list_of_2_elem_f64_arr(expr: &str) -> IResult<&str, Vec<[f64; 2]>, String> {
-    let (mut expr, v) = parse_2_elem_f64_arr(expr)?;
+fn parse_list_of_elem<'a, T>(
+    expr: &'a str,
+    elem_parser: impl Fn(&'a str) -> IResult<&'a str, T, String>,
+    require_brackets: bool,
+) -> IResult<&str, Vec<T>, String> {
+    let expr = if require_brackets {
+        match tag::<_, _, Error<&str>>("[")(expr) {
+            Ok((expr, _)) => expr,
+            Err(e) => return Err(e.map(|_| format!("Expected opening brakcet at: '...{}'", expr))),
+        }
+    } else {
+        expr
+    };
+    let (mut expr, v) = elem_parser(expr)?;
     let mut elems = vec![v];
 
     while let Ok((nexpr, _)) = tag::<_, _, Error<&str>>(",")(expr) {
-        let (nexpr, v) = parse_2_elem_f64_arr(nexpr)?;
+        let (nexpr, v) = elem_parser(nexpr)?;
         expr = nexpr;
         elems.push(v);
     }
+    let expr = if require_brackets {
+        match tag::<_, _, Error<&str>>("]")(expr) {
+            Ok((expr, _)) => expr,
+            Err(e) => return Err(e.map(|_| format!("Expected closing brakcet at: '...{}'", expr))),
+        }
+    } else {
+        expr
+    };
     Ok((expr, elems))
 }
 
 pub fn compile_interval_list(expr: &str) -> Result<Vec<[f64; 2]>, ParsedFuncError> {
     let mut expr = expr.to_string();
     expr.retain(|c| !c.is_whitespace());
-    let list = parse_list_of_2_elem_f64_arr(&expr)?;
-    Ok(list.1)
+    let (expr, list) = parse_list_of_elem(&expr, &parse_2_elem_f64_arr, false)?;
+    if !expr.is_empty() {
+        return Err(ParsedFuncError::ResidueError(expr.to_string()));
+    }
+    Ok(list)
+}
+
+pub fn compile_polygon_set(expr: &str) -> Result<Vec<Vec<[f64; 2]>>, ParsedFuncError> {
+    let mut expr = expr.to_string();
+    expr.retain(|c| !c.is_whitespace());
+    let (expr, list) =
+        parse_list_of_elem(&expr, |expr| parse_list_of_elem(expr, parse_2_elem_f64_arr, true), false)?;
+    if !expr.is_empty() {
+        return Err(ParsedFuncError::ResidueError(expr.to_string()));
+    }
+    Ok(list)
 }
 
 impl BasicArithmetic for AD {
