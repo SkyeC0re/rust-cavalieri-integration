@@ -100,7 +100,7 @@ pub fn gen_display_grid_cav(
         .collect()
 }
 
-pub fn gen_display_interval_cav(
+pub fn gen_display_cav(
     f: impl Fn(AD) -> AD,
     c: impl Fn(AD) -> AD,
     intervals: Vec<[f64; 2]>,
