@@ -20,27 +20,34 @@ pub struct CavDisplay2D {
     #[pyo3(get)]
     pub b: f64,
     #[pyo3(get)]
-    pub cav_grid: Vec<Vec<f64>>,
+    pub cav_grid: Vec<Vec<[f64; 2]>>,
+    #[pyo3(get)]
+    pub dgv: Vec<f64>,
     #[pyo3(get)]
     pub integ_value: Option<(f64, f64)>,
 }
 
 impl CavDisplay2D {
-    pub fn new(
+    pub(crate) fn new(
         f: impl Fn(f64) -> f64,
         c: impl Fn(f64) -> f64,
+        dg: impl Fn(f64) -> f64,
         a: f64,
         b: f64,
         integ_value: Option<(f64, f64)>,
         cfg: &DisplayConfig2D,
     ) -> Self {
-        let xv = linspace(a, b, cfg.x_res);
+        let mut xv = linspace(a, b, cfg.x_res);
         let yrv = linspace(0f64, 1f64, cfg.y_res);
 
         CavDisplay2D {
             a,
             b,
             cav_grid: gen_display_grid_cav(&f, &c, &xv[..], &yrv[..]),
+            dgv: {
+                xv.iter_mut().for_each(|x| *x = dg(*x));
+                xv
+            },
             integ_value,
         }
     }
@@ -73,7 +80,7 @@ pub fn gen_display_grid_cav(
     c: impl Fn(f64) -> f64,
     xv: &[f64],
     yrv: &[f64],
-) -> Vec<Vec<f64>> {
+) -> Vec<Vec<[f64; 2]>> {
     let c_0 = c(0f64);
     let c = |y: f64| c(y) - c_0;
     let g = |x: f64| x - c(f(x));
@@ -84,7 +91,10 @@ pub fn gen_display_grid_cav(
         .map(|yr| {
             xrv.iter()
                 .zip(xv.into_iter())
-                .map(|(&xr, &x)| xr + c(yr * f(x)))
+                .map(|(&xr, &x)| {
+                    let y = yr * f(x);
+                    [xr + c(y), y]
+                })
                 .collect::<Vec<_>>()
         })
         .collect()
@@ -106,7 +116,7 @@ pub fn gen_display_interval_cav(
         splits.insert(0, a);
         splits.push(b);
         for i in 1..splits.len() {
-            let c = generate_c(&f, g, &xv)?;
+            //let c = generate_c(&f, g, &xv)?;
             let integ_value = if cfg.compute_integ {
                 Some(gauss_kronrod_quadrature(
                     |x| f(AD(x, 1f64)).0 * g(AD(x, 1f64)).1,
@@ -120,7 +130,8 @@ pub fn gen_display_interval_cav(
             };
             displays.push(CavDisplay2D::new(
                 |x| f(AD(x, 0f64)).0,
-                c,
+                |y| c(AD(y, 0f64)).0,
+                |x| g(AD(x, 1f64)).1,
                 splits[i - 1],
                 splits[i],
                 integ_value,
@@ -162,6 +173,7 @@ pub fn gen_display_rs(
             displays.push(CavDisplay2D::new(
                 |x| f(AD(x, 0f64)).0,
                 c,
+                |x| g(AD(x, 1f64)).1,
                 splits[i - 1],
                 splits[i],
                 integ_value,
