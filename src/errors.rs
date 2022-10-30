@@ -76,6 +76,24 @@ impl From<ParsedFuncError> for PyErr {
 }
 
 #[derive(Debug, Error)]
+pub enum Display3DError {
+    #[error("Triangulation Error: {0}")]
+    TriangulationError(TriangulationError),
+}
+
+impl From<TriangulationError> for Display3DError {
+    fn from(err: TriangulationError) -> Self {
+        Self::TriangulationError(err)
+    }
+}
+
+impl From<Display3DError> for PyErr {
+    fn from(e: Display3DError) -> Self {
+        PyRuntimeError::new_err(format!("{}", e))
+    }
+}
+
+#[derive(Debug, Error)]
 pub enum IntegError {
     #[error("Integral did not converge within permitted iterations")]
     ConvergenceError,
@@ -105,5 +123,5 @@ pub enum TriangulationError {
     NoPolygon,
 
     #[error("Point type could not be derived for point {0}")]
-    NoPointType(Pt)
+    NoPointType(Pt),
 }

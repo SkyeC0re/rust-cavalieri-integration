@@ -1,5 +1,3 @@
-use peroxide::prelude::linspace;
-
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Sign {
     NEG,
@@ -42,7 +40,32 @@ impl Signed for f64 {
     }
 }
 
-pub fn vec_from_res_func(a: f64, b: f64, res: impl Fn(f64, f64) -> usize) -> Vec<f64> {
-    let res = res(a, b);
-    linspace(a, b, res)
+pub fn n_linspace<const N: usize>(a: &[f64; N], b: &[f64; N], mut length: usize) -> Vec<[f64; N]> {
+    if length < 2 {
+        length = 2
+    };
+    let mut vals = Vec::with_capacity(length);
+    let mut c = 0f64;
+    for p in 0..length {
+        c = (p as f64) / ((length - 1) as f64);
+        let mut pos = [0f64; N];
+        for i in 0..N {
+            pos[i] = (1f64 - c) * a[i] + c * b[i];
+        }
+        vals.push(pos);
+    }
+    vals
+}
+
+pub fn linspace(a: f64, b: f64, mut length: usize) -> Vec<f64> {
+    if length < 2 {
+        length = 2
+    };
+    let mut vals = Vec::with_capacity(length);
+    let mut c = 0f64;
+    for p in 0..length {
+        c = (p as f64) / ((length - 1) as f64);
+        vals.push((1f64 - c) * a + c * b);
+    }
+    vals
 }

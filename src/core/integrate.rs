@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, ops::Mul};
 
 use crate::errors::IntegError;
 

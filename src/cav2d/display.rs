@@ -1,13 +1,13 @@
 use std::cmp::Ordering;
 
-use peroxide::prelude::{cubic_spline, linspace, Spline};
+use peroxide::{prelude::{cubic_spline, linspace, Spline}, fuga::{cubic_hermite_spline, SlopeMethod}};
 use pyo3::pyclass;
 use roots::{find_root_brent, SimpleConvergency};
 
 use crate::{
     core::{
         differentiable::{AD, ZERO},
-        helpers::{vec_from_res_func, Sign, Signed},
+        helpers::{Sign, Signed},
         integrate::gauss_kronrod_quadrature,
     },
     errors::Display2DError,
@@ -66,8 +66,8 @@ impl Default for DisplayConfig2D {
     fn default() -> Self {
         Self {
             compute_integ: false,
-            x_res: 100,
-            y_res: 100,
+            x_res: 50,
+            y_res: 50,
             max_rf_iters: 500,
             max_int_iters: 500,
             tol: 1e-9,
@@ -322,10 +322,16 @@ pub fn generate_c(
     xv: &[f64],
 ) -> Result<impl Fn(f64) -> f64, Display2DError> {
     let mut xv: Vec<f64> = xv.into_iter().copied().collect();
-    let yv: Vec<f64> = xv.iter().map(|x| f(AD(*x, 0f64)).0).collect();
+
+    let mut yv: Vec<f64> = xv.iter().map(|x| f(AD(*x, 0f64)).0).collect();
 
     if !is_strictly_monotone(&yv[..]) {
         return Err(Display2DError::NonMonotone);
+    }
+
+    if yv[0] > yv[yv.len() - 1] {
+        yv.reverse();
+        xv.reverse();
     }
 
     let mut cyv: Vec<f64> = xv.iter().map(|x| g(AD(*x, 0f64)).0).collect();
@@ -338,6 +344,6 @@ pub fn generate_c(
         .zip(xv.iter_mut())
         .for_each(|(cy, x)| *cy = *x - *cy);
 
-    let c = cubic_spline(&yv[..], &cyv[..]);
+    let c = cubic_hermite_spline(&yv[..], &cyv[..], SlopeMethod::Quadratic);
     Ok(move |y: f64| c.eval(y))
 }

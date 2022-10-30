@@ -9,10 +9,13 @@ use pyo3::prelude::*;
 use cav2d::display::CavDisplay2D;
 use cpython_funcs::extension::{display_cav2d, display_cav2d_rs};
 
+use crate::cpython_funcs::extension::display_cav3d;
+
 #[pymodule]
 fn cavint(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<CavDisplay2D>()?;
     m.add_function(wrap_pyfunction!(display_cav2d, m)?)?;
     m.add_function(wrap_pyfunction!(display_cav2d_rs, m)?)?;
+    m.add_function(wrap_pyfunction!(display_cav3d, m)?)?;
     Ok(())
 }
