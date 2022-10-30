@@ -65,7 +65,7 @@ pub fn gauss_kronrod_quadrature(
     for _ in 0..max_iter.unwrap_or(usize::MAX) {
         if accu_err.is_nan() {
             return Err(IntegError::NaNError);
-        } else if accu_err < tol {
+        } else if (accu_err < tol) {
             return Ok((approx_intvls.into_iter().map(|v| v.val).sum(), accu_err));
         }
         match approx_intvls.iter().last() {
@@ -98,7 +98,11 @@ pub fn gauss_kronrod_quadrature(
     Err(IntegError::ConvergenceError)
 }
 
-pub fn symmetric_gauss_quadrature(
+pub fn gauss_kronrod_quadrature_triangle(f: impl Fn([f64; 2]) -> f64, triag: [[f64; 2]; 3]) -> Result<(f64, f64), IntegError> {
+    todo!()
+}
+
+fn symmetric_gauss_quadrature(
     f: impl Fn(f64) -> f64,
     a: f64,
     b: f64,

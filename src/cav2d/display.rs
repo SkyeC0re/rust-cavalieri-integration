@@ -7,14 +7,14 @@ use roots::{find_root_brent, SimpleConvergency};
 use crate::{
     core::{
         differentiable::{AD, ZERO},
-        helpers::{Sign, Signed},
+        helpers::{vec_from_res_func, Sign, Signed},
         integrate::gauss_kronrod_quadrature,
     },
     errors::Display2DError,
 };
 
 #[pyclass]
-pub struct CavDisplay {
+pub struct CavDisplay2D {
     #[pyo3(get)]
     pub a: f64,
     #[pyo3(get)]
@@ -25,44 +25,42 @@ pub struct CavDisplay {
     pub integ_value: Option<(f64, f64)>,
 }
 
-impl CavDisplay {
+impl CavDisplay2D {
     pub fn new(
         f: impl Fn(f64) -> f64,
         c: impl Fn(f64) -> f64,
         a: f64,
         b: f64,
         integ_value: Option<(f64, f64)>,
-        cfg: &DisplayConfig,
+        cfg: &DisplayConfig2D,
     ) -> Self {
-        let xv = (cfg.x_res_gen)(a, b);
-        let yrv = (cfg.y_res_gen)(a, b);
+        let xv = linspace(a, b, cfg.x_res);
+        let yrv = linspace(0f64, 1f64, cfg.y_res);
 
-        let g = |x| x - f(c(x));
-
-        CavDisplay {
+        CavDisplay2D {
             a,
             b,
             cav_grid: gen_display_grid_cav(&f, &c, &xv[..], &yrv[..]),
-            integ_value: None,
+            integ_value,
         }
     }
 }
 
-pub struct DisplayConfig {
+pub struct DisplayConfig2D {
     pub compute_integ: bool,
-    pub x_res_gen: Box<dyn Fn(f64, f64) -> Vec<f64>>,
-    pub y_res_gen: Box<dyn Fn(f64, f64) -> Vec<f64>>,
+    pub x_res: usize,
+    pub y_res: usize,
     pub max_rf_iters: usize,
     pub max_int_iters: usize,
     pub tol: f64,
 }
 
-impl Default for DisplayConfig {
+impl Default for DisplayConfig2D {
     fn default() -> Self {
         Self {
             compute_integ: false,
-            x_res_gen: Box::new(|a: f64, b: f64| linspace(a, b, 100)),
-            y_res_gen: Box::new(|_a: f64, _b: f64| linspace(0f64, 1f64, 100)),
+            x_res: 100,
+            y_res: 100,
             max_rf_iters: 500,
             max_int_iters: 500,
             tol: 1e-9,
@@ -96,14 +94,14 @@ pub fn gen_display_interval_cav(
     f: impl Fn(AD) -> AD,
     c: impl Fn(AD) -> AD,
     intervals: Vec<[f64; 2]>,
-    cfg: DisplayConfig,
-) -> Result<Vec<CavDisplay>, Display2DError> {
+    cfg: DisplayConfig2D,
+) -> Result<Vec<CavDisplay2D>, Display2DError> {
     let mut displays = vec![];
     let g = |x: AD| x - c(f(x));
     for interval in intervals {
         let a = interval[0];
         let b = interval[1];
-        let xv = (cfg.x_res_gen)(a, b);
+        let xv = linspace(a, b, cfg.x_res);
         let mut splits = split_strictly_monotone(g, &xv[..], cfg.tol, cfg.max_rf_iters)?;
         splits.insert(0, a);
         splits.push(b);
@@ -120,7 +118,7 @@ pub fn gen_display_interval_cav(
             } else {
                 None
             };
-            displays.push(CavDisplay::new(
+            displays.push(CavDisplay2D::new(
                 |x| f(AD(x, 0f64)).0,
                 c,
                 splits[i - 1],
@@ -137,13 +135,13 @@ pub fn gen_display_rs(
     f: impl Fn(AD) -> AD,
     g: impl Fn(AD) -> AD,
     intervals: Vec<[f64; 2]>,
-    cfg: DisplayConfig,
-) -> Result<Vec<CavDisplay>, Display2DError> {
+    cfg: DisplayConfig2D,
+) -> Result<Vec<CavDisplay2D>, Display2DError> {
     let mut displays = vec![];
     for interval in intervals {
         let a = interval[0];
         let b = interval[1];
-        let xv = (cfg.x_res_gen)(a, b);
+        let xv = linspace(a, b, cfg.x_res);
         let mut splits = split_translational(&f, &g, &xv[..], cfg.tol, cfg.max_rf_iters)?;
         splits.insert(0, a);
         splits.push(b);
@@ -161,7 +159,7 @@ pub fn gen_display_rs(
             } else {
                 None
             };
-            displays.push(CavDisplay::new(
+            displays.push(CavDisplay2D::new(
                 |x| f(AD(x, 0f64)).0,
                 c,
                 splits[i - 1],

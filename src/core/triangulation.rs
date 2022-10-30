@@ -78,6 +78,12 @@ impl From<[f64; 2]> for Pt {
     }
 }
 
+impl Into<[f64; 2]> for Pt {
+    fn into(self) -> [f64; 2] {
+        self.0.map(|v| v.into())
+    }
+}
+
 pub fn y_extrap(p1: Pt, p2: Pt, x: OFlt<f64>, right: bool) -> OFlt<f64> {
     let (p1, p2) = if p1 > p2 { (p2, p1) } else { (p1, p2) };
 
@@ -119,6 +125,12 @@ impl<P: Into<Pt>> From<[P; 3]> for Triag {
         Self::from_pt_arr(t)
     }
 }
+
+impl Into<[[f64; 2]; 3]> for Triag {
+    fn into(self) -> [[f64; 2]; 3] {
+        self.0.map(|v| v.into())
+    }
+} 
 
 impl Display for Triag {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

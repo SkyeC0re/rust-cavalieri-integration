@@ -6,12 +6,12 @@ pub mod errors;
 
 use pyo3::prelude::*;
 
-use cav2d::display::CavDisplay;
-use cpython_funcs::extension::display_cav;
+use cav2d::display::CavDisplay2D;
+use cpython_funcs::extension::display_cav2d;
 
 #[pymodule]
 fn cavint(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_class::<CavDisplay>()?;
-    m.add_function(wrap_pyfunction!(display_cav, m)?)?;
+    m.add_class::<CavDisplay2D>()?;
+    m.add_function(wrap_pyfunction!(display_cav2d, m)?)?;
     Ok(())
 }
