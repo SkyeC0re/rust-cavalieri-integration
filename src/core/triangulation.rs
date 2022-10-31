@@ -1,9 +1,8 @@
 use std::{
     cell::RefCell,
-    cmp::{min, min_by, Ordering},
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    cmp::{min_by, Ordering},
+    collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Display,
-    mem::{self, transmute},
     ops::Bound,
     rc::Rc,
 };
@@ -130,7 +129,7 @@ impl Into<[[f64; 2]; 3]> for Triag {
     fn into(self) -> [[f64; 2]; 3] {
         self.0.map(|v| v.into())
     }
-} 
+}
 
 impl Display for Triag {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -594,7 +593,7 @@ fn handle_next(
                 bot.borrow_mut().b_partner = Some(bot_bot.clone());
                 bot.borrow_mut().bof_in_interval = !bot_bot.borrow().bof_in_interval;
                 bot_bot.borrow_mut().t_partner = Some(bot.clone());
-                 // Ensure bot will not overlap its bottom partner
+                // Ensure bot will not overlap its bottom partner
                 if bot.borrow().will_overlap_bot() {
                     return Err(TriangulationError::Overlap(ptype, p));
                 }
@@ -762,11 +761,7 @@ pub fn triangulate_polygon_set(
         let pt = polygon[0];
         valid_pt(pt)?;
         let first = LPt::new(pt);
-        match PType::from_triplet(
-            pt,
-            polygon[1],
-            polygon[polygon.len() - 1],
-        )? {
+        match PType::from_triplet(pt, polygon[1], polygon[polygon.len() - 1])? {
             PType::Start => {
                 y_struct.ordered_points.insert(first.clone(), vec![]);
             }

@@ -18,16 +18,10 @@ fn test_saddle() {
     assert_eq!(roots.len(), 0);
 }
 
-
 #[test]
 fn test_saddle2() {
-    let roots = split_strictly_monotone(
-        |x| x.powi(3),
-        &linspace(-10f64, 10f64, 100),
-        1e-9,
-        100,
-    )
-    .unwrap();
+    let roots =
+        split_strictly_monotone(|x| x.powi(3), &linspace(-10f64, 10f64, 100), 1e-9, 100).unwrap();
 
     assert_eq!(roots.len(), 0);
 }

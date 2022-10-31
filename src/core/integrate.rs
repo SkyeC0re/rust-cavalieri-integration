@@ -1,4 +1,4 @@
-use std::{cmp::max, collections::BTreeSet, ops::Mul};
+use std::{cmp::max, collections::BTreeSet};
 
 use ordered_float::OrderedFloat;
 
@@ -67,7 +67,7 @@ pub fn gauss_kronrod_quadrature(
     for _ in 0..max_iter.unwrap_or(usize::MAX) {
         if accu_err.is_nan() {
             return Err(IntegError::NaNError);
-        } else if (accu_err < tol) {
+        } else if accu_err < tol {
             return Ok((approx_intvls.into_iter().map(|v| v.val).sum(), accu_err));
         }
         match approx_intvls.iter().last() {

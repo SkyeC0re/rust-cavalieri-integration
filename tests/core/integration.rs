@@ -1,9 +1,12 @@
 use std::f64::consts::PI;
 
 use approx::assert_abs_diff_eq;
-use cavint::core::{integrate::{
-    gauss_kronrod_quadrature, gauss_kronrod_quadrature_2d, gauss_kronrod_quadrature_triangle,
-}, differentiable::{AD, abs_jacobian_det}};
+use cavint::core::{
+    differentiable::{abs_jacobian_det, AD},
+    integrate::{
+        gauss_kronrod_quadrature, gauss_kronrod_quadrature_2d, gauss_kronrod_quadrature_triangle,
+    },
+};
 
 /* One Dimensional Integration Tests */
 
@@ -88,7 +91,7 @@ fn prismatoid_bot() {
 #[test]
 fn prismatoid_top() {
     let f = |[x, y]: [AD; 2]| -x - y + AD(8f64, 0f64);
-    let c = |z: AD| [z/AD(2f64, 0f64), z];
+    let c = |z: AD| [z / AD(2f64, 0f64), z];
     let g = |x: [AD; 2]| {
         let mut cfx = c(f(x));
         cfx[0] = x[0] - cfx[0];
@@ -100,18 +103,20 @@ fn prismatoid_top() {
         |xy| f(xy.map(|v| v.into())).0 * g_abs_jdet(xy),
         0.8,
         4.8,
-        |x| [
-            3.2 + if x < 1.6 {
-                -3f64 * (x - 1.6)
-            } else {
-                -0.5 * (x - 1.6)
-            },
-            4f64 + if x < 4f64 {
-                -0.5 * (x - 4f64)
-            } else {
-                -3f64 * (x - 4f64)
-            }
-        ],
+        |x| {
+            [
+                3.2 + if x < 1.6 {
+                    -3f64 * (x - 1.6)
+                } else {
+                    -0.5 * (x - 1.6)
+                },
+                4f64 + if x < 4f64 {
+                    -0.5 * (x - 4f64)
+                } else {
+                    -3f64 * (x - 4f64)
+                },
+            ]
+        },
         1e-11,
         Some(100),
         25.6,
@@ -121,20 +126,8 @@ fn prismatoid_top() {
 #[test]
 fn prismatoid_top2() {
     let f = |[u, v]: [f64; 2]| 8f64 - 0.8 * u - 0.2 * v;
-    test_fn_2d(
-        f,
-        4f64,
-        6f64,
-        |_| [
-           8f64,
-           16f64
-        ],
-        1e-11,
-        Some(100),
-        25.6,
-    )
+    test_fn_2d(f, 4f64, 6f64, |_| [8f64, 16f64], 1e-11, Some(100), 25.6)
 }
-
 
 /* Triangle Integation Tests */
 

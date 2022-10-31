@@ -77,6 +77,7 @@ fn multiple_intervals() {
 
 /* Polygon set tests */
 
+#[test]
 fn single_polgyonl() {
     let expected = vec![vec![[0f64, 1f64], [2f64, 3f64], [4f64, 5f64]]];
     let actual = compile_polygon_set("[[0,  1], [2,3], [4, 5]]").unwrap();
@@ -90,7 +91,8 @@ fn multiple_polygons() {
         vec![[0f64, 1f64], [2f64, 3f64], [4f64, 5f64]],
         vec![[6f64, 7f64], [8f64, 9f64], [10f64, 11f64]],
     ];
-    let actual = compile_polygon_set("[[0, 1], [2, 3], [4, 5]],[[6, 7], [8, 9], [10, 11]]").unwrap();
+    let actual =
+        compile_polygon_set("[[0, 1], [2, 3], [4, 5]],[[6, 7], [8, 9], [10, 11]]").unwrap();
 
     assert_eq!(expected, actual)
 }

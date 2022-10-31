@@ -5,14 +5,8 @@ use std::{
 };
 
 use nom::{
-    branch::alt,
-    bytes::complete::tag,
-    character::complete::alpha1,
-    combinator::{opt, verify},
-    error::Error,
-    multi::fold_many0,
-    number::complete::double,
-    IResult,
+    branch::alt, bytes::complete::tag, character::complete::alpha1, combinator::verify,
+    error::Error, multi::fold_many0, number::complete::double, IResult,
 };
 
 use crate::errors::ParsedFuncError;
@@ -360,8 +354,11 @@ pub fn compile_interval_list(expr: &str) -> Result<Vec<[f64; 2]>, ParsedFuncErro
 pub fn compile_polygon_set(expr: &str) -> Result<Vec<Vec<[f64; 2]>>, ParsedFuncError> {
     let mut expr = expr.to_string();
     expr.retain(|c| !c.is_whitespace());
-    let (expr, list) =
-        parse_list_of_elem(&expr, |expr| parse_list_of_elem(expr, parse_2_elem_f64_arr, true), false)?;
+    let (expr, list) = parse_list_of_elem(
+        &expr,
+        |expr| parse_list_of_elem(expr, parse_2_elem_f64_arr, true),
+        false,
+    )?;
     if !expr.is_empty() {
         return Err(ParsedFuncError::ResidueError(expr.to_string()));
     }

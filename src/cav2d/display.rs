@@ -1,12 +1,15 @@
 use std::cmp::Ordering;
 
-use peroxide::{prelude::{cubic_spline, linspace, Spline}, fuga::{cubic_hermite_spline, SlopeMethod}};
+use peroxide::{
+    fuga::{cubic_hermite_spline, SlopeMethod},
+    prelude::{linspace, Spline},
+};
 use pyo3::pyclass;
 use roots::{find_root_brent, SimpleConvergency};
 
 use crate::{
     core::{
-        differentiable::{AD, ZERO},
+        differentiable::AD,
         helpers::{Sign, Signed},
         integrate::gauss_kronrod_quadrature,
     },

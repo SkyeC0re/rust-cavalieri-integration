@@ -26,7 +26,6 @@ fn test_saddle_f_linear_g() {
     assert_eq!(roots.len(), 0);
 }
 
-
 #[test]
 fn test_multiple_roots() {
     let f = |x: AD| x.powi(3);
