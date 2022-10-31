@@ -63,6 +63,12 @@ impl From<SearchError> for Display2DError {
     }
 }
 
+impl From<IntegError> for Display2DError {
+    fn from(ie: IntegError) -> Self {
+        Display2DError::IntegrationError { err: ie }
+    }
+}
+
 impl From<Display2DError> for PyErr {
     fn from(e: Display2DError) -> Self {
         PyRuntimeError::new_err(format!("{}", e))
@@ -79,11 +85,20 @@ impl From<ParsedFuncError> for PyErr {
 pub enum Display3DError {
     #[error("Triangulation Error: {0}")]
     TriangulationError(TriangulationError),
+
+    #[error("Integration Error: {}", err)]
+    IntegrationError { err: IntegError },
 }
 
 impl From<TriangulationError> for Display3DError {
     fn from(err: TriangulationError) -> Self {
         Self::TriangulationError(err)
+    }
+}
+
+impl From<IntegError> for Display3DError {
+    fn from(ie: IntegError) -> Self {
+        Display3DError::IntegrationError { err: ie }
     }
 }
 
@@ -102,11 +117,7 @@ pub enum IntegError {
     NaNError,
 }
 
-impl From<IntegError> for Display2DError {
-    fn from(ie: IntegError) -> Self {
-        Display2DError::IntegrationError { err: ie }
-    }
-}
+
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum TriangulationError {

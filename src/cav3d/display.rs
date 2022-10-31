@@ -2,8 +2,9 @@ use pyo3::pyclass;
 
 use crate::{
     core::{
-        differentiable::AD,
+        differentiable::{abs_jacobian_det, AD},
         helpers::{linspace, n_linspace},
+        integrate::gauss_kronrod_quadrature_triangle,
         triangulation::triangulate_polygon_set,
     },
     errors::Display3DError,
@@ -31,14 +32,14 @@ impl CavDisplay3D {
         integ_value: Option<(f64, f64)>,
         cfg: &DisplayConfig3D,
     ) -> Self {
-        let mut xvs = [
+        let xvs = [
             n_linspace(&triag[1], &triag[2], cfg.x_res),
             n_linspace(&triag[2], &triag[0], cfg.x_res),
             n_linspace(&triag[0], &triag[1], cfg.x_res),
         ];
         let yrv = linspace(0f64, 1f64, cfg.y_res);
         let g = |x: [f64; 2]| {
-            let mut cfx = c(f(x.clone()));
+            let mut cfx = c(f(x));
             cfx[0] = x[0] - cfx[0];
             cfx[1] = x[1] - cfx[1];
             cfx
@@ -139,7 +140,7 @@ pub fn gen_display_curtain(
         cy
     };
     let g = |x: [f64; 2]| {
-        let mut cfx = c(f(x.clone()));
+        let mut cfx = c(f(x));
         cfx[0] = x[0] - cfx[0];
         cfx[1] = x[1] - cfx[1];
         cfx
@@ -152,7 +153,7 @@ pub fn gen_display_curtain(
             xrv.iter()
                 .zip(xv.into_iter())
                 .map(|(xr, x)| {
-                    let y = yr * f(x.clone());
+                    let y = yr * f(*x);
                     let mut x = c(y);
                     x[0] += xr[0];
                     x[1] += xr[1];
@@ -181,7 +182,23 @@ pub fn gen_display_cav(
                 [cy[0].0, cy[1].0]
             },
             triag,
-            None,
+            if cfg.compute_integ {
+                let g = |x: [AD; 2]| {
+                    let mut cfx = c(f(x));
+                    cfx[0] = x[0] - cfx[0];
+                    cfx[1] = x[1] - cfx[1];
+                    cfx
+                };
+
+                Some(gauss_kronrod_quadrature_triangle(
+                    |xy| f(xy.map(|v| v.into())).0 * abs_jacobian_det(g, xy),
+                    triag,
+                    cfg.tol,
+                    Some(cfg.max_int_iters),
+                )?)
+            } else {
+                None
+            },
             &cfg,
         ));
     }
