@@ -87,9 +87,9 @@ fn prismatoid_bot() {
 
 #[test]
 fn prismatoid_top() {
-    let f = |[x, y]: [f64; 2]| (-x - y + 8f64) * (5f64 / 2f64);
+    let f_jdet_g = |[x, y]: [f64; 2]| (-x - y + 8f64) * (5f64 / 2f64);
     test_fn_2d(
-        f,
+        f_jdet_g,
         0.8,
         4.8,
         |x| [
