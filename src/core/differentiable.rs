@@ -127,3 +127,10 @@ impl AD {
         AD(self.0.atanh(), self.1 / (1f64 - self.0 * self.0))
     }
 }
+
+pub fn abs_jacobian_det(g: impl Fn([AD; 2]) -> [AD; 2], x: [f64; 2]) -> f64 {
+    let c1 = g([AD(x[0], 1f64), AD(x[1], 0f64)]);
+    let c2 = g([AD(x[0], 0f64), AD(x[1], 1f64)]);
+
+    (c1[0].1 * c2[1].1 - c1[1].1 * c2[0].1).abs()
+}

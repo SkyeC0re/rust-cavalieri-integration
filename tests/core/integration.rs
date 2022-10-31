@@ -1,9 +1,9 @@
 use std::f64::consts::PI;
 
 use approx::assert_abs_diff_eq;
-use cavint::core::integrate::{
+use cavint::core::{integrate::{
     gauss_kronrod_quadrature, gauss_kronrod_quadrature_2d, gauss_kronrod_quadrature_triangle,
-};
+}, differentiable::{AD, abs_jacobian_det}};
 
 /* One Dimensional Integration Tests */
 
@@ -87,9 +87,17 @@ fn prismatoid_bot() {
 
 #[test]
 fn prismatoid_top() {
-    let f_jdet_g = |[x, y]: [f64; 2]| (-x - y + 8f64) * (5f64 / 2f64);
+    let f = |[x, y]: [AD; 2]| -x - y + AD(8f64, 0f64);
+    let c = |z: AD| [z/AD(2f64, 0f64), z];
+    let g = |x: [AD; 2]| {
+        let mut cfx = c(f(x));
+        cfx[0] = x[0] - cfx[0];
+        cfx[1] = x[1] - cfx[1];
+        cfx
+    };
+    let g_abs_jdet = move |xy: [f64; 2]| abs_jacobian_det(g, xy);
     test_fn_2d(
-        f_jdet_g,
+        |xy| f(xy.map(|v| v.into())).0 * g_abs_jdet(xy),
         0.8,
         4.8,
         |x| [

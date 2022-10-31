@@ -44,12 +44,6 @@ impl CavDisplay3D {
             cfx
         };
 
-        let xrvs: [Vec<[f64; 2]>; 3] = [
-            xvs[0].iter().map(|x| g(x.clone())).collect(),
-            xvs[1].iter().map(|x| g(x.clone())).collect(),
-            xvs[2].iter().map(|x| g(x.clone())).collect(),
-        ];
-
         let curtains = [
             gen_display_curtain(&f, &c, &xvs[0], &yrv),
             gen_display_curtain(&f, &c, &xvs[1], &yrv),
