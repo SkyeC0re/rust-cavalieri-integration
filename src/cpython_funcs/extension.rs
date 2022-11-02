@@ -96,7 +96,7 @@ pub fn display_cav3d(
 ) -> PyResult<Vec<CavDisplay3D>> {
     let mut f_context = DefaultContext::default();
     f_context.add_var("x", 0);
-    f_context.add_var("y", 0);
+    f_context.add_var("y", 1);
     let f_expr = compile_expression(&f_expr, f_context)?;
     let mut c_context = DefaultContext::default();
     c_context.add_var("z", 0);
