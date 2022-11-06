@@ -32,7 +32,9 @@ pub fn display_cav2d(
     let mut c_context = DefaultContext::default();
     c_context.add_var("y", 0);
     let c_expr = compile_expression(&c_expr, &c_context)?;
-    let intervals = compile_interval_list(&intervals)?;
+
+    let intervals_context = DefaultContext::default();
+    let intervals = compile_interval_list(&intervals, &intervals_context)?;
 
     Ok(gen_display_cav(
         &move |x| f_expr.eval(&[x]),
@@ -67,7 +69,8 @@ pub fn display_cav2d_rs(
     context.add_var("x", 0);
     let f_expr = compile_expression(&f_expr, &context)?;
     let g_expr = compile_expression(&g_expr, &context)?;
-    let intervals = compile_interval_list(&intervals)?;
+    let intervals_context = DefaultContext::default();
+    let intervals = compile_interval_list(&intervals, &intervals_context)?;
 
     Ok(gen_display_rs(
         &move |x| f_expr.eval(&[x]),
@@ -106,7 +109,8 @@ pub fn display_cav3d(
     c_context.add_var("z", 0);
     let c1_expr = compile_expression(&c1_expr, &c_context)?;
     let c2_expr = compile_expression(&c2_expr, &c_context)?;
-    let poly_set = compile_polygon_set(&polygon_set)?;
+    let poly_set_context = DefaultContext::default();
+    let poly_set = compile_polygon_set(&polygon_set, poly_set_context)?;
 
     Ok(gen_display_cav3d(
         move |x| f_expr.eval(&x),

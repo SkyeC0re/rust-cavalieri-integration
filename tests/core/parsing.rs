@@ -62,7 +62,7 @@ fn break_me() {
 #[test]
 fn single_interval() {
     let expected = vec![[0f64, 1f64]];
-    let actual = compile_interval_list("[0,  1]").unwrap();
+    let actual = compile_interval_list("[0,  1]", DefaultContext::default()).unwrap();
 
     assert_eq!(expected, actual)
 }
@@ -70,7 +70,7 @@ fn single_interval() {
 #[test]
 fn multiple_intervals() {
     let expected = vec![[0f64, 1f64], [2f64, -1f64]];
-    let actual = compile_interval_list("[0,  1], [2, -1]").unwrap();
+    let actual = compile_interval_list("[0,  1], [2, -1]", DefaultContext::default()).unwrap();
 
     assert_eq!(expected, actual)
 }
@@ -80,7 +80,7 @@ fn multiple_intervals() {
 #[test]
 fn single_polgyonl() {
     let expected = vec![vec![[0f64, 1f64], [2f64, 3f64], [4f64, 5f64]]];
-    let actual = compile_polygon_set("[[0,  1], [2,3], [4, 5]]").unwrap();
+    let actual = compile_polygon_set("[[0,  1], [2,3], [4, 5]]", DefaultContext::default()).unwrap();
 
     assert_eq!(expected, actual)
 }
@@ -92,7 +92,7 @@ fn multiple_polygons() {
         vec![[6f64, 7f64], [8f64, 9f64], [10f64, 11f64]],
     ];
     let actual =
-        compile_polygon_set("[[0, 1], [2, 3], [4, 5]],[[6, 7], [8, 9], [10, 11]]").unwrap();
+        compile_polygon_set("[[0, 1], [2, 3], [4, 5]],[[6, 7], [8, 9], [10, 11]]", DefaultContext::default()).unwrap();
 
     assert_eq!(expected, actual)
 }

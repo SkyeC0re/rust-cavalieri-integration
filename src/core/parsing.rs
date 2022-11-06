@@ -285,28 +285,26 @@ pub fn compile_expression<'a, const I: usize, T: ArithParsable>(
     Ok(term.1)
 }
 
-fn parse_2_elem_f64_arr(expr: &str) -> IResult<&str, [f64; 2], String> {
+fn parse_2_elem_f64_arr<'a>(
+    expr: &'a str,
+    context: &HashMap<String, ContextElement<f64>>,
+) -> IResult<&'a str, [f64; 2], String> {
     let expr = match tag::<_, _, Error<&str>>("[")(expr) {
         Ok((expr, _)) => expr,
         Err(e) => return Err(e.map(|_| format!("Expected opening brakcet at: '...{}'", expr))),
     };
-    let (expr, v1) = match double::<_, Error<&str>>(expr) {
-        Ok(res) => res,
-        Err(e) => return Err(e.map(|_| format!("Expected closing f64 at: '...{}'", expr))),
-    };
+    let (expr, v1) = parse_expression::<0, _>(expr, context)?;
+
     let expr = match tag::<_, _, Error<&str>>(",")(expr) {
         Ok((expr, _)) => expr,
         Err(e) => return Err(e.map(|_| format!("Expected comma at: '...{}'", expr))),
     };
-    let (expr, v2) = match double::<_, Error<&str>>(expr) {
-        Ok(res) => res,
-        Err(e) => return Err(e.map(|_| format!("Expected closing f64 at: '...{}'", expr))),
-    };
+    let (expr, v2) = parse_expression::<0, _>(expr, context)?;
     let expr = match tag::<_, _, Error<&str>>("]")(expr) {
         Ok((expr, _)) => expr,
         Err(e) => return Err(e.map(|_| format!("Expected closing bracket at: '...{}'", expr))),
     };
-    Ok((expr, [v1, v2]))
+    Ok((expr, [v1.eval(&[]), v2.eval(&[])]))
 }
 
 fn parse_list_of_elem<'a, T>(
@@ -341,22 +339,38 @@ fn parse_list_of_elem<'a, T>(
     Ok((expr, elems))
 }
 
-pub fn compile_interval_list(expr: &str) -> Result<Vec<[f64; 2]>, ParsedFuncError> {
+pub fn compile_interval_list<'a, 'b>(
+    expr: &'a str,
+    context: impl AsRef<HashMap<String, ContextElement<'b, f64>>>,
+) -> Result<Vec<[f64; 2]>, ParsedFuncError> {
     let mut expr = expr.to_string();
     expr.retain(|c| !c.is_whitespace());
-    let (expr, list) = parse_list_of_elem(&expr, &parse_2_elem_f64_arr, false)?;
+    let (expr, list) = parse_list_of_elem(
+        &expr,
+        |expr| parse_2_elem_f64_arr(expr, context.as_ref()),
+        false,
+    )?;
     if !expr.is_empty() {
         return Err(ParsedFuncError::ResidueError(expr.to_string()));
     }
     Ok(list)
 }
 
-pub fn compile_polygon_set(expr: &str) -> Result<Vec<Vec<[f64; 2]>>, ParsedFuncError> {
+pub fn compile_polygon_set<'a, 'b>(
+    expr: &'a str,
+    context: impl AsRef<HashMap<String, ContextElement<'b, f64>>>,
+) -> Result<Vec<Vec<[f64; 2]>>, ParsedFuncError> {
     let mut expr = expr.to_string();
     expr.retain(|c| !c.is_whitespace());
     let (expr, list) = parse_list_of_elem(
         &expr,
-        |expr| parse_list_of_elem(expr, parse_2_elem_f64_arr, true),
+        |expr| {
+            parse_list_of_elem(
+                expr,
+                |expr| parse_2_elem_f64_arr(expr, context.as_ref()),
+                true,
+            )
+        },
         false,
     )?;
     if !expr.is_empty() {
