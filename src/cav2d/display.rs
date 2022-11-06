@@ -1,3 +1,5 @@
+use std::{mem::swap, cmp::Ordering};
+
 use crate::{
     core::{
         differentiable::{Differentiable1D, AD},
@@ -9,7 +11,6 @@ use crate::{
 use log::debug;
 use pyo3::pyclass;
 use roots::{find_root_brent, Convergency};
-use std::{cmp::Ordering, mem::swap};
 
 #[pyclass]
 pub struct CavDisplay2D {
@@ -230,15 +231,15 @@ pub fn gen_display_rs(
             }
 
             let min_f_dcy = (1f64 - g.df(min_f_x)) / min_fdf.1;
-            let max_f_dcy = (1f64 - g.df(max_f_x)) / max_fdf.1;
+            let max_f_dcy = (1f64 - g.df(max_f_x))/  max_fdf.1;
             let cx = |x: f64| x - g.f(x);
             let min_f_cy = cx(min_f_x);
             let max_f_cy = cx(max_f_x);
             let c_raw = |y: f64| {
                 if y <= min_fdf.0 {
-                    min_f_cy - min_f_dcy * (min_fdf.0 - y).ln_1p()
+                    min_f_cy - (min_f_dcy * (min_fdf.0 - y)).ln_1p()
                 } else if y >= max_fdf.0 {
-                    max_f_cy + max_f_dcy * (y - max_fdf.0).ln_1p()
+                    max_f_cy + (max_f_dcy * (y - max_fdf.0)).ln_1p()
                 } else {
                     let x = find_root_brent(
                         min_f_x,
