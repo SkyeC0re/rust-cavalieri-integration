@@ -1,17 +1,6 @@
-use std::{
-    borrow::Borrow,
-    cmp::{min, Ordering},
-    mem::swap,
-};
-
-use ordered_float::OrderedFloat;
-use peroxide::{
-    fuga::{cubic_hermite_spline, SlopeMethod},
-    prelude::{linspace, Spline},
-};
+use std::{cmp::Ordering, mem::swap};
 use pyo3::pyclass;
 use roots::{find_root_brent, SimpleConvergency};
-
 use crate::{
     core::{
         differentiable::{Differentiable1D, AD},
@@ -103,7 +92,7 @@ pub fn gen_display_cav(
     for interval in intervals {
         let a = interval[0];
         let b = interval[1];
-        let xv = linspace(a, b, cfg.x_res);
+        let xv = vec_from_res(a, b, cfg.x_res);
         let mut splits = split_strictly_monotone(&g, &xv[..], cfg.tol, cfg.max_rf_iters)?;
         splits.insert(0, a);
         splits.push(b);
@@ -179,7 +168,7 @@ pub fn gen_display_rs(
     for interval in intervals {
         let a = interval[0];
         let b = interval[1];
-        let xv = linspace(a, b, cfg.x_res);
+        let xv = vec_from_res(a, b, cfg.x_res);
         let mut splits = split_translational(f, g, &xv[..], cfg.tol, cfg.max_rf_iters)?;
         splits.insert(0, a);
         splits.push(b);
@@ -188,8 +177,8 @@ pub fn gen_display_rs(
             let a = splits[i - 1];
             let b = splits[i];
 
-             // Find integration value
-             let integ_value = if cfg.compute_integ {
+            // Find integration value
+            let integ_value = if cfg.compute_integ {
                 Some(gauss_kronrod_quadrature(
                     |x| f.f(x) * g.df(x),
                     a,
@@ -200,9 +189,9 @@ pub fn gen_display_rs(
             } else {
                 None
             };
-           
+
             // Find x*, f(x*), g(x*), dg(x*)
-            let xv = linspace(a, b, cfg.x_res);
+            let xv = vec_from_res(a, b, cfg.x_res);
             let fv: Vec<f64> = xv.iter().map(|x| f.f(*x)).collect();
             let (gv, dgv): (Vec<f64>, Vec<f64>) = xv.iter().map(|x| g.fdf(*x)).unzip();
 
