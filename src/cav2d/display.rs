@@ -1,4 +1,4 @@
-use std::{mem::swap, cmp::Ordering};
+use std::{cmp::Ordering, mem::swap};
 
 use crate::{
     core::{
@@ -11,6 +11,8 @@ use crate::{
 use log::debug;
 use pyo3::pyclass;
 use roots::{find_root_brent, Convergency};
+
+const DECAY_TERM_MAX: f64 = 10f64;
 
 #[pyclass]
 pub struct CavDisplay2D {
@@ -218,9 +220,8 @@ pub fn gen_display_rs(
             let (mut gv, dgv): (Vec<f64>, Vec<f64>) = xv.iter().map(|x| g.fdf(*x)).unzip();
 
             // Generate c(y)
-            let sign_x = (b - a).sign_val();
-            let mut min_f_x = a + sign_x * cfg.tol;
-            let mut max_f_x = b - sign_x * cfg.tol;
+            let mut min_f_x = a;
+            let mut max_f_x = b;
 
             let mut min_fdf = f.fdf(min_f_x);
             let mut max_fdf = f.fdf(max_f_x);
@@ -229,17 +230,27 @@ pub fn gen_display_rs(
                 swap(&mut min_fdf, &mut max_fdf);
                 swap(&mut min_f_x, &mut max_f_x);
             }
+            let p_decay_max = DECAY_TERM_MAX / (max_fdf.0 - min_fdf.0);
 
-            let min_f_dcy = (1f64 - g.df(min_f_x)) / min_fdf.1;
-            let max_f_dcy = (1f64 - g.df(max_f_x))/  max_fdf.1;
+            let mut min_f_dcy = (1f64 - g.df(min_f_x)) / min_fdf.1;
+            // Revert to c(y) = 0 if gradient is too large
+            if !(min_f_dcy.abs() < p_decay_max) {
+                min_f_dcy = 0f64;
+            }
+            let mut max_f_dcy = (1f64 - g.df(max_f_x)) / max_fdf.1;
+            // Revert to c(y) = 0 if gradient is too large
+            if !(max_f_dcy.abs() < p_decay_max) {
+                max_f_dcy = 0f64;
+            }
+            
             let cx = |x: f64| x - g.f(x);
             let min_f_cy = cx(min_f_x);
             let max_f_cy = cx(max_f_x);
             let c_raw = |y: f64| {
-                if y <= min_fdf.0 {
-                    min_f_cy - (min_f_dcy * (min_fdf.0 - y)).ln_1p()
-                } else if y >= max_fdf.0 {
-                    max_f_cy + (max_f_dcy * (y - max_fdf.0)).ln_1p()
+                if y < min_fdf.0 {
+                    min_f_cy - min_f_dcy.sign_val() * (min_f_dcy.abs() * (min_fdf.0 - y)).ln_1p()
+                } else if y > max_fdf.0 {
+                    max_f_cy + max_f_dcy.sign_val() * (max_f_dcy.abs() * (y - max_fdf.0)).ln_1p()
                 } else {
                     let x = find_root_brent(
                         min_f_x,
