@@ -67,7 +67,7 @@ impl Div for AD {
 
 impl AD {
     pub fn abs(self) -> Self {
-        AD(self.0.abs(), self.1.abs())
+        AD(self.0.abs(), if self.0 < 0f64 { -self.1 } else { self.1 })
     }
 
     pub fn ln(self) -> Self {

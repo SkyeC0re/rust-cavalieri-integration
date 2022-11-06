@@ -1,6 +1,3 @@
-use std::{cmp::Ordering, mem::swap};
-use pyo3::pyclass;
-use roots::{find_root_brent, SimpleConvergency};
 use crate::{
     core::{
         differentiable::{Differentiable1D, AD},
@@ -9,6 +6,10 @@ use crate::{
     },
     errors::Display2DError,
 };
+use log::debug;
+use pyo3::pyclass;
+use roots::{find_root_brent, Convergency};
+use std::{cmp::Ordering, mem::swap};
 
 #[pyclass]
 pub struct CavDisplay2D {
@@ -21,7 +22,7 @@ pub struct CavDisplay2D {
     #[pyo3(get)]
     pub xv: Vec<f64>,
     #[pyo3(get)]
-    pub cvs: Vec<Vec<[f64; 2]>>,
+    pub cvs: Vec<(usize, Vec<[f64; 2]>)>,
     #[pyo3(get)]
     pub gv: Vec<f64>,
     #[pyo3(get)]
@@ -51,6 +52,25 @@ impl Default for DisplayConfig2D {
             max_int_iters: 500,
             tol: 1e-9,
         }
+    }
+}
+
+struct XConvergency {
+    pub max_iters: usize,
+    pub tol: f64,
+}
+
+impl Convergency<f64> for XConvergency {
+    fn is_root_found(&mut self, y: f64) -> bool {
+        y == 0f64
+    }
+
+    fn is_converged(&mut self, x1: f64, x2: f64) -> bool {
+        (x2 - x1).abs() < self.tol / 2f64
+    }
+
+    fn is_iteration_limit_reached(&mut self, iter: usize) -> bool {
+        iter >= self.max_iters
     }
 }
 
@@ -86,8 +106,8 @@ pub fn gen_display_cav(
     cfg: DisplayConfig2D,
 ) -> Result<Vec<CavDisplay2D>, Display2DError> {
     let mut displays = vec![];
-    let g = |x: AD| x - c.composition(f.fdf(x.0)).into();
     let c_0 = c.f(0f64);
+    let g = |x: AD| x - c.composition(f.fdf(x.0)).into() + AD(c_0, 0f64);
     let c = |y: f64| c.f(y) - c_0;
     for interval in intervals {
         let a = interval[0];
@@ -128,7 +148,7 @@ pub fn gen_display_cav(
                             (((xv.len() - 1) as f64 * n as f64) / (cfg.interm_cs + 1) as f64)
                                 .round() as usize
                         })
-                        .filter(|i| *i >= xv.len()),
+                        .filter(|i| *i < xv.len()),
                 )
                 .chain([xv.len() - 1].into_iter())
             {
@@ -136,11 +156,12 @@ pub fn gen_display_cav(
                 let xr = gv[i];
 
                 let yrv = vec_from_res(0f64, 1f64, cfg.y_res);
-                cvs.push(
+                cvs.push((
+                    i,
                     yrv.into_iter()
                         .map(|r| [(r * fx), xr + c(r * fx)])
                         .collect(),
-                )
+                ))
             }
 
             displays.push(CavDisplay2D {
@@ -193,7 +214,7 @@ pub fn gen_display_rs(
             // Find x*, f(x*), g(x*), dg(x*)
             let xv = vec_from_res(a, b, cfg.x_res);
             let fv: Vec<f64> = xv.iter().map(|x| f.f(*x)).collect();
-            let (gv, dgv): (Vec<f64>, Vec<f64>) = xv.iter().map(|x| g.fdf(*x)).unzip();
+            let (mut gv, dgv): (Vec<f64>, Vec<f64>) = xv.iter().map(|x| g.fdf(*x)).unzip();
 
             // Generate c(y)
             let sign_x = (b - a).sign_val();
@@ -213,7 +234,7 @@ pub fn gen_display_rs(
             let cx = |x: f64| x - g.f(x);
             let min_f_cy = cx(min_f_x);
             let max_f_cy = cx(max_f_x);
-            let c = |y: f64| {
+            let c_raw = |y: f64| {
                 if y <= min_fdf.0 {
                     min_f_cy - min_f_dcy * (min_fdf.0 - y).ln_1p()
                 } else if y >= max_fdf.0 {
@@ -223,15 +244,19 @@ pub fn gen_display_rs(
                         min_f_x,
                         max_f_x,
                         |x| f.f(x) - y,
-                        &mut SimpleConvergency {
-                            eps: cfg.tol,
-                            max_iter: cfg.max_rf_iters,
+                        &mut XConvergency {
+                            tol: cfg.tol,
+                            max_iters: cfg.max_rf_iters,
                         },
                     )
                     .unwrap_or(f64::NAN);
                     cx(x)
                 }
             };
+
+            let c_0 = c_raw(0f64);
+            let c = |y| c_raw(y) - c_0;
+            gv.iter_mut().for_each(|xr| *xr += c_0);
 
             // Compute required c(y) translations
             let mut cvs = Vec::with_capacity(2 + cfg.interm_cs);
@@ -243,7 +268,7 @@ pub fn gen_display_rs(
                             (((xv.len() - 1) as f64 * n as f64) / (cfg.interm_cs + 1) as f64)
                                 .round() as usize
                         })
-                        .filter(|i| *i >= xv.len()),
+                        .filter(|i| *i < xv.len()),
                 )
                 .chain([xv.len() - 1].into_iter())
             {
@@ -251,11 +276,12 @@ pub fn gen_display_rs(
                 let xr = gv[i];
 
                 let yrv = vec_from_res(0f64, 1f64, cfg.y_res);
-                cvs.push(
+                cvs.push((
+                    i,
                     yrv.into_iter()
                         .map(|r| [(r * fx), xr + c(r * fx)])
                         .collect(),
-                )
+                ))
             }
 
             displays.push(CavDisplay2D {
@@ -304,8 +330,8 @@ pub fn split_strictly_monotone(
     let b = xv[xv_len - 1];
 
     let x_sign = (b - a).sign_val();
-    xv[0] = xv[0] + x_sign * tol;
-    xv[xv_len - 1] = xv[xv_len - 1] - x_sign * tol;
+    xv[0] += x_sign * tol;
+    xv[xv_len - 1] -= x_sign * tol;
 
     let dfv: Vec<(f64, f64)> = xv.iter().map(|x| f.fdf(*x)).collect();
     let mut roots = vec![];
@@ -315,20 +341,23 @@ pub fn split_strictly_monotone(
         let ldfs = dfv[i - 1].1.sign();
         let rdfs = dfv[i].1.sign();
         if ldfs == Sign::NAN || (ldfs == Sign::ZERO && !is_monotic_saddle(f, xv[i - 1], tol)) {
-            roots.push(dfv[i - 1].0);
+            debug!("Root by Left: {}", xv[i - 1]);
+            roots.push(xv[i - 1]);
         } else if rdfs == Sign::NAN || (rdfs == Sign::ZERO && !is_monotic_saddle(f, xv[i], tol)) {
+            debug!("Root by Right: {}", xv[i]);
+            roots.push(xv[i]);
             i += 1;
-            roots.push(dfv[i].0);
         } else if ldfs != rdfs {
             let r = find_root_brent(
                 xv[i - 1],
                 xv[i],
                 |x| f.df(x),
-                &mut SimpleConvergency {
-                    eps: tol,
-                    max_iter: max_rf_iters,
+                &mut XConvergency {
+                    tol,
+                    max_iters: max_rf_iters,
                 },
             )?;
+            debug!("Root by Finder: {r}");
             roots.push(r);
         }
         i += 1;
