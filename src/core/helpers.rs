@@ -67,3 +67,11 @@ pub fn linspace(a: f64, b: f64, mut length: usize) -> Vec<f64> {
     }
     vals
 }
+
+pub fn vec_from_res(a: f64, b: f64, res: usize) -> Vec<f64> {
+    linspace(a, b, res + 1)
+}
+
+pub fn n_vec_from_res<const N: usize>(a: &[f64; N], b: &[f64; N], res: usize) -> Vec<[f64; N]> {
+    n_linspace(a, b, res + 1)
+}

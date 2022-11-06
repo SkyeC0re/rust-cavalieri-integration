@@ -8,7 +8,7 @@ use peroxide::prelude::linspace;
 #[test]
 fn test_saddle() {
     let roots = split_strictly_monotone(
-        |x| AD(4f64, 0f64) + (x - AD(1f64, 0f64)).powi(3),
+        &|x: AD| AD(4f64, 0f64) + (x - AD(1f64, 0f64)).powi(3),
         &linspace(-10f64, 10f64, 100),
         1e-9,
         100,
@@ -21,7 +21,7 @@ fn test_saddle() {
 #[test]
 fn test_saddle2() {
     let roots =
-        split_strictly_monotone(|x| x.powi(3), &linspace(-10f64, 10f64, 100), 1e-9, 100).unwrap();
+        split_strictly_monotone(&|x: AD| x.powi(3), &linspace(-10f64, 10f64, 100), 1e-9, 100).unwrap();
 
     assert_eq!(roots.len(), 0);
 }
@@ -29,7 +29,7 @@ fn test_saddle2() {
 #[test]
 fn test_single_root() {
     let roots = split_strictly_monotone(
-        |x| (x + ONE) * (x - ONE),
+        &|x| (x + ONE) * (x - ONE),
         &linspace(-10f64, 10f64, 79),
         1e-9,
         100,
@@ -42,7 +42,7 @@ fn test_single_root() {
 #[test]
 fn test_multiple_roots() {
     let roots = split_strictly_monotone(
-        |x| x.powi(3) / AD(3f64, 0f64) - AD(0.25, 0f64) * x,
+        &|x: AD| x.powi(3) / AD(3f64, 0f64) - AD(0.25, 0f64) * x,
         &linspace(-10f64, 10f64, 100),
         1e-9,
         100,

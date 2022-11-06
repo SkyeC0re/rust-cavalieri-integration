@@ -1,6 +1,6 @@
 [package]
 name = "cavint"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -12,10 +12,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 peroxide = "0.31.8"
 approx = "0.5.1"
-mexprp = {version = "0.3.0", default-features = false}
 thiserror = "1.0.37"
 pyo3 = { version = "0.17.2", features = ["extension-module"] }
-parking_lot = "0.12.1"
 roots = "0.0.7"
 nom = "7.1.1"
 ordered-float = "3.3.0"

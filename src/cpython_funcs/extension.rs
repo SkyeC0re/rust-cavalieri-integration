@@ -21,6 +21,7 @@ pub fn display_cav2d(
     compute_integ: bool,
     x_res: usize,
     y_res: usize,
+    interm_cs: usize,
     max_rf_iters: usize,
     max_int_iters: usize,
     tol: f64,
@@ -34,13 +35,14 @@ pub fn display_cav2d(
     let intervals = compile_interval_list(&intervals)?;
 
     Ok(gen_display_cav(
-        move |x| f_expr.eval(&[x]),
-        move |y| c_expr.eval(&[y]),
+        &move |x| f_expr.eval(&[x]),
+        &move |y| c_expr.eval(&[y]),
         intervals,
         DisplayConfig2D {
             compute_integ,
             x_res,
             y_res,
+            interm_cs,
             max_rf_iters,
             max_int_iters,
             tol,
@@ -56,6 +58,7 @@ pub fn display_cav2d_rs(
     compute_integ: bool,
     x_res: usize,
     y_res: usize,
+    interm_cs: usize,
     max_rf_iters: usize,
     max_int_iters: usize,
     tol: f64,
@@ -67,13 +70,14 @@ pub fn display_cav2d_rs(
     let intervals = compile_interval_list(&intervals)?;
 
     Ok(gen_display_rs(
-        move |x| f_expr.eval(&[x]),
-        move |x| g_expr.eval(&[x]),
+        &move |x| f_expr.eval(&[x]),
+        &move |x| g_expr.eval(&[x]),
         intervals,
         DisplayConfig2D {
             compute_integ,
             x_res,
             y_res,
+            interm_cs,
             max_rf_iters,
             max_int_iters,
             tol,

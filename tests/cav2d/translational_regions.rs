@@ -21,7 +21,7 @@ fn test_saddle_f_linear_g() {
     let a = -3f64;
     let b = 5f64;
     let xv = linspace(a, b, 100);
-    let roots = split_translational(f, g, &xv[..], 1e-9, 100).unwrap();
+    let roots = split_translational(&f, &g, &xv[..], 1e-9, 100).unwrap();
 
     assert_eq!(roots.len(), 0);
 }
@@ -42,7 +42,7 @@ fn test_multiple_roots() {
     let a = -3f64;
     let b = 5f64;
     let xv = linspace(a, b, 100);
-    let roots = split_translational(f, g, &xv[..], 1e-9, 100).unwrap();
+    let roots = split_translational(&f, &g, &xv[..], 1e-9, 100).unwrap();
 
     assert_eq!(roots.len(), 1);
     assert_abs_diff_eq!(roots[0], 0.0, epsilon = 1e-9);
