@@ -220,32 +220,37 @@ pub fn gen_display_rs(
             let (mut gv, dgv): (Vec<f64>, Vec<f64>) = xv.iter().map(|x| g.fdf(*x)).unzip();
 
             // Generate c(y)
-            let mut min_f_x = a;
-            let mut max_f_x = b;
+            let mut min_x = a;
+            let mut max_x = b;
+            if min_x > max_x {
+                swap(&mut min_x, &mut max_x);
+            }
+            min_x += cfg.tol;
+            max_x -= cfg.tol;
 
-            let mut min_fdf = f.fdf(min_f_x);
-            let mut max_fdf = f.fdf(max_f_x);
+            let mut min_fdf = f.fdf(min_x);
+            let mut max_fdf = f.fdf(max_x);
 
             if min_fdf > max_fdf {
                 swap(&mut min_fdf, &mut max_fdf);
-                swap(&mut min_f_x, &mut max_f_x);
+                swap(&mut min_x, &mut max_x);
             }
-            let p_decay_max = DECAY_TERM_MAX / (max_fdf.0 - min_fdf.0);
+            let p_decay_max = DECAY_TERM_MAX * ((max_x - min_x) / (max_fdf.0 - min_fdf.0)).abs();
 
-            let mut min_f_dcy = (1f64 - g.df(min_f_x)) / min_fdf.1;
+            let mut min_f_dcy = (1f64 - g.df(min_x)) / min_fdf.1;
             // Revert to c(y) = 0 if gradient is too large
             if !(min_f_dcy.abs() < p_decay_max) {
                 min_f_dcy = 0f64;
             }
-            let mut max_f_dcy = (1f64 - g.df(max_f_x)) / max_fdf.1;
+            let mut max_f_dcy = (1f64 - g.df(max_x)) / max_fdf.1;
             // Revert to c(y) = 0 if gradient is too large
             if !(max_f_dcy.abs() < p_decay_max) {
                 max_f_dcy = 0f64;
             }
             
             let cx = |x: f64| x - g.f(x);
-            let min_f_cy = cx(min_f_x);
-            let max_f_cy = cx(max_f_x);
+            let min_f_cy = cx(min_x);
+            let max_f_cy = cx(max_x);
             let c_raw = |y: f64| {
                 if y < min_fdf.0 {
                     min_f_cy - min_f_dcy.sign_val() * (min_f_dcy.abs() * (min_fdf.0 - y)).ln_1p()
@@ -253,8 +258,8 @@ pub fn gen_display_rs(
                     max_f_cy + max_f_dcy.sign_val() * (max_f_dcy.abs() * (y - max_fdf.0)).ln_1p()
                 } else {
                     let x = find_root_brent(
-                        min_f_x,
-                        max_f_x,
+                        min_x,
+                        max_x,
                         |x| f.f(x) - y,
                         &mut XConvergency {
                             tol: cfg.tol,
@@ -316,7 +321,7 @@ pub fn gen_func_interval(f: impl Fn(AD) -> AD, xv: &[f64]) -> Vec<f64> {
     yv
 }
 
-pub fn is_monotic_saddle(f: &dyn Differentiable1D, x: f64, tol: f64) -> bool {
+pub fn is_monotonic_saddle(f: &dyn Differentiable1D, x: f64, tol: f64) -> bool {
     let x1 = f.fdf(x - tol);
     let x2 = f.fdf(x + tol);
 
@@ -350,16 +355,16 @@ pub fn split_strictly_monotone(
     let mut i = 1;
 
     while i < xv.len() {
-        let ldfs = dfv[i - 1].1.sign();
-        let rdfs = dfv[i].1.sign();
-        if ldfs == Sign::NAN || (ldfs == Sign::ZERO && !is_monotic_saddle(f, xv[i - 1], tol)) {
+        let ldfs = dfv[i - 1].1;
+        let rdfs = dfv[i].1;
+        if !ldfs.is_finite() || (ldfs == 0f64 && !is_monotonic_saddle(f, xv[i - 1], tol)) {
             debug!("Root by Left: {}", xv[i - 1]);
             roots.push(xv[i - 1]);
-        } else if rdfs == Sign::NAN || (rdfs == Sign::ZERO && !is_monotic_saddle(f, xv[i], tol)) {
+        } else if !rdfs.is_finite() || (rdfs == 0f64 && !is_monotonic_saddle(f, xv[i], tol)) {
             debug!("Root by Right: {}", xv[i]);
             roots.push(xv[i]);
             i += 1;
-        } else if ldfs != rdfs {
+        } else if ldfs.signum() != rdfs.signum() {
             let r = find_root_brent(
                 xv[i - 1],
                 xv[i],
@@ -411,7 +416,6 @@ pub fn split_translational(
     let mut merged_roots: Vec<f64> = f_roots
         .into_iter()
         .chain(g_roots.into_iter())
-        .filter(|r| (r - a).abs() > tol && (b - r).abs() > tol)
         .collect();
 
     merged_roots.sort_by(|a, b| {
