@@ -12,7 +12,7 @@ use log::debug;
 use pyo3::pyclass;
 use roots::{find_root_brent, Convergency};
 
-const DECAY_TERM_MAX: f64 = 10f64;
+const C_GRAD_MAX: f64 = 10f64;
 
 #[pyclass]
 pub struct CavDisplay2D {
@@ -235,15 +235,15 @@ pub fn gen_display_rs(
                 swap(&mut min_fdf, &mut max_fdf);
                 swap(&mut min_x, &mut max_x);
             }
-            let p_decay_max = DECAY_TERM_MAX * ((max_x - min_x) / (max_fdf.0 - min_fdf.0)).abs();
+            let p_decay_max = C_GRAD_MAX * (max_x - min_x).abs();
 
             let mut min_f_dcy = (1f64 - g.df(min_x)) / min_fdf.1;
-            // Revert to c(y) = 0 if gradient is too large
+            // Revert to c'(y) = 0 if gradient is too large
             if !(min_f_dcy.abs() < p_decay_max) {
                 min_f_dcy = 0f64;
             }
             let mut max_f_dcy = (1f64 - g.df(max_x)) / max_fdf.1;
-            // Revert to c(y) = 0 if gradient is too large
+            // Revert to c'(y) = 0 if gradient is too large
             if !(max_f_dcy.abs() < p_decay_max) {
                 max_f_dcy = 0f64;
             }
