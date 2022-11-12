@@ -25,7 +25,7 @@ const KRONROD_NODES_WEIGHTS_21: [(f64, f64); 11] = [
     (0.97390652851717172, 0.032558162307964727),
     (0.995657163025808081, 0.011694638867371874),
 ];
-#[derive(PartialEq, PartialOrd, Clone, Debug)]
+#[derive(PartialEq, PartialOrd, Clone)]
 struct ApproxInterval {
     pub err: f64,
     pub val: f64,
@@ -112,7 +112,7 @@ pub fn gauss_kronrod_quadrature_2d(
         return Ok((0f64, 0f64));
     }
     let gk_approx = |a: f64, b: f64| -> Result<(f64, f64), IntegError> {
-        let li = nested_symmetric_gauss_quadrature(
+        let li = nested_gauss_kronrod_quadrature(
             &f,
             a,
             b,
@@ -121,7 +121,7 @@ pub fn gauss_kronrod_quadrature_2d(
             max_iter,
             &LEGENDRE_NODES_WEIGHTS_10,
         )?;
-        let ki = nested_symmetric_gauss_quadrature(
+        let ki = nested_gauss_kronrod_quadrature(
             &f,
             a,
             b,
@@ -199,12 +199,17 @@ pub fn gauss_kronrod_quadrature_triangle(
     gauss_kronrod_quadrature_2d(f, 0f64, 1f64, |u1| [0f64, 1f64 - u1], tol, max_iter)
 }
 
-fn symmetric_gauss_quadrature(f: impl Fn(f64) -> f64, a: f64, b: f64, rule: &[(f64, f64)]) -> f64 {
+pub fn symmetric_gauss_quadrature(
+    f: impl Fn(f64) -> f64,
+    a: f64,
+    b: f64,
+    rule: &[(f64, f64)],
+) -> f64 {
     (b - a) / 2f64
         * unit_symmetric_gauss_quadrature(|x| f(x * (b - a) / 2f64 + (a + b) / 2f64), rule)
 }
 
-fn unit_symmetric_gauss_quadrature(f: impl Fn(f64) -> f64, rule: &[(f64, f64)]) -> f64 {
+pub fn unit_symmetric_gauss_quadrature(f: impl Fn(f64) -> f64, rule: &[(f64, f64)]) -> f64 {
     let mut s = 0f64;
     if rule.len() == 0 {
         return s;
@@ -221,7 +226,7 @@ fn unit_symmetric_gauss_quadrature(f: impl Fn(f64) -> f64, rule: &[(f64, f64)]) 
     s
 }
 
-fn nested_symmetric_gauss_quadrature(
+pub fn nested_gauss_kronrod_quadrature(
     f: impl Fn([f64; 2]) -> f64,
     a: f64,
     b: f64,

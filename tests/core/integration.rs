@@ -5,6 +5,7 @@ use cavint::core::{
     differentiable::{abs_jacobian_det, AD},
     integrate::{
         gauss_kronrod_quadrature, gauss_kronrod_quadrature_2d, gauss_kronrod_quadrature_triangle,
+        nested_gauss_kronrod_quadrature, symmetric_gauss_quadrature,
     },
 };
 
@@ -26,22 +27,32 @@ fn test_fn(
 
 #[test]
 fn constant() {
-    test_fn(|_| 4f64, -1f64, 5f64, 1e-9, Some(1), 24f64)
+    test_fn(|_| 4f64, -1f64, 5f64, 1e-9, Some(1), 24f64);
+}
+
+#[test]
+fn a_eq_b() {
+    test_fn(|_| 4f64, 5f64, 5f64, 1e-9, Some(1), 0f64);
+}
+
+#[test]
+fn zero_rule() {
+    assert_eq!(symmetric_gauss_quadrature(|_| 0f64, 0f64, 1f64, &[]), 0f64)
 }
 
 #[test]
 fn linear() {
-    test_fn(|x| x + 2f64, 1f64, -1f64, 1e-9, Some(1), -4f64)
+    test_fn(|x| x + 2f64, 1f64, -1f64, 1e-9, Some(1), -4f64);
 }
 
 #[test]
 fn oscillating() {
-    test_fn(|x| x.sin(), 0f64, 1.5 * PI, 1e-9, Some(100), 1.0)
+    test_fn(|x| x.sin(), 0f64, 1.5 * PI, 1e-9, Some(100), 1.0);
 }
 
 #[test]
 fn outside_domain() {
-    assert!(gauss_kronrod_quadrature(|x| x.ln(), -1f64, 1f64, 1e-9, Some(100)).is_err(),)
+    assert!(gauss_kronrod_quadrature(|x| x.ln(), -1f64, 1f64, 1e-9, Some(100)).is_err());
 }
 
 #[test]
@@ -53,7 +64,7 @@ fn iter_restriction() {
         1e-9,
         Some(1)
     )
-    .is_err(),)
+    .is_err());
 }
 
 /* Two Dimensional Itegration Tests */
@@ -71,6 +82,20 @@ fn test_fn_2d(
 
     assert!(err < tol);
     assert_abs_diff_eq!(res, true_res, epsilon = tol);
+}
+
+#[test]
+fn a_eq_b_2d() {
+    test_fn_2d(|_| 0f64, 0f64, 0f64, |_| [0f64, 4f64], 1e-11, Some(1), 0f64)
+}
+
+#[test]
+fn zero_rule_2d() {
+    assert_eq!(
+        nested_gauss_kronrod_quadrature(|_| 0f64, 0f64, 1f64, |_| [1f64, 0f64], 0f64, None, &[],)
+            .unwrap(),
+        (0f64, 0f64)
+    )
 }
 
 #[test]
