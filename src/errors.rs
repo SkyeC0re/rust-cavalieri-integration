@@ -1,4 +1,4 @@
-use peroxide::fuga::RootError;
+
 use pyo3::{exceptions::PyRuntimeError, PyErr};
 use roots::SearchError;
 use thiserror::Error;
@@ -49,12 +49,6 @@ pub enum Display2DError {
 
     #[error("Integration Error: {}", err)]
     IntegrationError { err: IntegError },
-}
-
-impl From<RootError> for Display2DError {
-    fn from(re: RootError) -> Self {
-        Display2DError::RootError(format!("{}", re))
-    }
 }
 
 impl From<SearchError> for Display2DError {

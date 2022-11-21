@@ -1,7 +1,5 @@
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-use peroxide::prelude::Polynomial;
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd)]
 pub struct AD(pub f64, pub f64);
 
@@ -153,28 +151,6 @@ pub trait Differentiable1D {
         let mut fdf = self.fdf(gdg.0);
         fdf.1 *= gdg.1;
         fdf
-    }
-}
-
-impl Differentiable1D for Polynomial {
-    fn f(&self, x: f64) -> f64 {
-        self.eval(x)
-    }
-
-    fn df(&self, x: f64) -> f64 {
-        if self.coef.len() < 2 {
-            return 0f64;
-        }
-        Polynomial::new(
-            self.coef
-                .iter()
-                .rev()
-                .enumerate()
-                .skip(1)
-                .map(|(p, &c)| p as f64 * c)
-                .collect(),
-        )
-        .eval(x)
     }
 }
 

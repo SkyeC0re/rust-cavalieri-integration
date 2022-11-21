@@ -1,9 +1,8 @@
 use approx::assert_abs_diff_eq;
 use cavint::{
     cav2d::display::split_translational,
-    core::{differentiable::AD, helpers::Signed},
+    core::{differentiable::AD, helpers::{Signed, linspace}},
 };
-use peroxide::prelude::linspace;
 
 #[test]
 fn test_saddle_f_linear_g() {
