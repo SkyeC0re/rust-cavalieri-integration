@@ -104,15 +104,15 @@ impl AD {
     }
 
     pub fn asin(self) -> Self {
-        AD(self.0.asin(), self.1 / (self.0 * self.0 - 1f64).sqrt())
+        AD(self.0.asin(), self.1 / (1f64 - self.0.powi(2)).sqrt())
     }
 
     pub fn acos(self) -> Self {
-        AD(self.0.acos(), -self.1 / (self.0 * self.0 - 1f64).sqrt())
+        AD(self.0.acos(), -self.1 / (1f64 - self.0.powi(2)).sqrt())
     }
 
     pub fn atan(self) -> Self {
-        AD(self.0.atan(), self.1 / (self.0 * self.0 + 1f64))
+        AD(self.0.atan(), self.1 / (self.0.powi(2) + 1f64))
     }
 
     pub fn sinh(self) -> Self {

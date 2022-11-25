@@ -1,9 +1,40 @@
 
+use std::fmt::Display;
+
 use pyo3::{exceptions::PyRuntimeError, PyErr};
 use roots::SearchError;
 use thiserror::Error;
 
 use crate::core::triangulation::{PType, Pt};
+#[derive(Debug, Error)]
+pub enum PyProxyError {
+    #[error("{0}")]
+   Error(String)
+}
+
+impl From<ParsedFuncError> for PyProxyError {
+    fn from(e: ParsedFuncError) -> Self {
+        PyProxyError::Error(format!("{}", e))
+    }
+}
+
+impl From<Display2DError> for PyProxyError {
+    fn from(e: Display2DError) -> Self {
+        PyProxyError::Error(format!("{}", e))
+    }
+}
+
+impl From<Display3DError> for PyProxyError {
+    fn from(e: Display3DError) -> Self {
+        PyProxyError::Error(format!("{}", e))
+    }
+}
+
+impl From<PyProxyError> for PyErr {
+    fn from(e: PyProxyError) -> Self {
+        PyRuntimeError::new_err(format!("{}", e))
+    }
+}
 
 /// An error that can occur during parsing
 #[derive(Debug, Error)]

@@ -271,9 +271,9 @@ pub fn gen_display_rs(
                 }
             };
 
-            let c_0 = c_raw(0f64);
-            let c = |y| c_raw(y) - c_0;
-            gv.iter_mut().for_each(|xr| *xr += c_0);
+            let k = c_raw(0f64);
+            let c = |y| c_raw(y) - k;
+            gv.iter_mut().for_each(|xr| *xr += k);
 
             // Compute required c(y) translations
             let mut cvs = Vec::with_capacity(2 + cfg.interm_cs);
