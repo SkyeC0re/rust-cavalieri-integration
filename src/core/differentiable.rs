@@ -120,7 +120,7 @@ impl AD {
     }
 
     pub fn cosh(self) -> Self {
-        AD(self.0.cosh(), -self.0.sinh() * self.1)
+        AD(self.0.cosh(), self.0.sinh() * self.1)
     }
 
     pub fn tanh(self) -> Self {
@@ -128,11 +128,11 @@ impl AD {
     }
 
     pub fn asinh(self) -> Self {
-        AD(self.0.asinh(), self.1 / (self.0 * self.0 + 1f64).sqrt())
+        AD(self.0.asinh(), self.1 / (self.0.powi(2) + 1f64).sqrt())
     }
 
     pub fn acosh(self) -> Self {
-        AD(self.0.acosh(), self.1 / (self.0 * self.0 - 1f64).sqrt())
+        AD(self.0.acosh(), self.1 / (self.0.powi(2) - 1f64).sqrt())
     }
 
     pub fn atanh(self) -> Self {

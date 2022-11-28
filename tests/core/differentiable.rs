@@ -31,6 +31,17 @@ fn pow2() {
 }
 
 #[test]
+fn one_over_x() {
+    test_f_df_over_interval(|x| AD::from(1f64) / x, |x| 1f64 / x, |x| -1f64/x.powi(2), 1f64, 3f64);
+}
+
+#[test]
+fn ln_x_p1() {
+    test_f_df_over_interval(|x| (AD::from(1f64) + x).ln(), |x| x.ln_1p(), |x| 1f64/(1f64 + x), 0f64, 3f64);
+}
+
+
+#[test]
 fn pow_xx() {
     test_f_df_over_interval(
         |x| x.pow(x),
@@ -42,12 +53,78 @@ fn pow_xx() {
 }
 
 #[test]
-fn abs_sin_asin() {
+fn abs_sin() {
     test_f_df_over_interval(
         |x| x.sin().abs(),
         |x| x.sin().abs(),
         |x| x.sign_val() * x.cos(),
         -PI,
         PI,
+    );
+}
+
+#[test]
+fn asin() {
+    test_f_df_over_interval(
+        |x| x.asin(),
+        |x| x.asin(),
+        |x| 1f64 / (1f64 - x.powi(2)).sqrt(),
+        1f64,
+        -1f64,
+    );
+}
+
+#[test]
+fn sqrt_plus_cos() {
+    test_f_df_over_interval(
+        |x| AD::from(2f64)*x.sqrt() - x.cos(),
+        |x| 2f64 *x.sqrt() - x.cos(),
+        |x| 1f64 / x.sqrt() + x.sin(),
+        1f64,
+        2f64*PI,
+    );
+}
+
+#[test]
+fn acos_atan() {
+    test_f_df_over_interval(
+        |x| x.acos().atan(),
+        |x| x.acos().atan(),
+        |x| -1f64 / ((x.acos().powi(2) + 1f64)*(1f64 - x.powi(2)).sqrt()),
+        -0.99,
+        0.99,
+    );
+}
+
+#[test]
+fn cosh_plus_sinh() {
+    test_f_df_over_interval(
+        |x| x.cosh() + x.sinh(),
+        |x| x.cosh() + x.sinh(),
+        |x|x.sinh() + x.cosh(),
+        -2f64,
+        2f64,
+    );
+}
+
+#[test]
+fn acosh_x_asinh() {
+    test_f_df_over_interval(
+        |x| x.acosh() * x.asinh(),
+        |x| x.acosh() * x.asinh(),
+        |x| x.asinh()/ (x.powi(2) - 1f64).sqrt() + x.acosh()/ (x.powi(2) + 1f64).sqrt(),
+        2f64,
+        5f64,
+    );
+}
+
+#[test]
+fn tanh_atanh() {
+    test_f_df_over_interval(
+        |x| x.tanh().atanh(),
+        |x| x.tanh().atanh(),
+        |_| 1f64,
+        -1f64,
+        1f64,
     );
 }
