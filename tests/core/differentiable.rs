@@ -5,7 +5,7 @@ use cavint::core::{
     helpers::{linspace, Signed},
 };
 
-use crate::test_helpers::assert_float_iters_equal;
+use crate::{test_helpers::assert_float_iters_equal, setup};
 
 fn test_f_df_over_interval(
     ad_f: impl Fn(AD) -> AD,
@@ -27,22 +27,26 @@ fn test_f_df_over_interval(
 
 #[test]
 fn pow2() {
+    setup();
     test_f_df_over_interval(|x| x.powi(2), |x| x.powi(2), |x| 2f64 * x, -3f64, 3f64);
 }
 
 #[test]
 fn one_over_x() {
+    setup();
     test_f_df_over_interval(|x| AD::from(1f64) / x, |x| 1f64 / x, |x| -1f64/x.powi(2), 1f64, 3f64);
 }
 
 #[test]
 fn ln_x_p1() {
+    setup();
     test_f_df_over_interval(|x| (AD::from(1f64) + x).ln(), |x| x.ln_1p(), |x| 1f64/(1f64 + x), 0f64, 3f64);
 }
 
 
 #[test]
 fn pow_xx() {
+    setup();
     test_f_df_over_interval(
         |x| x.pow(x),
         |x| x.powf(x),
@@ -54,6 +58,7 @@ fn pow_xx() {
 
 #[test]
 fn abs_sin() {
+    setup();
     test_f_df_over_interval(
         |x| x.sin().abs(),
         |x| x.sin().abs(),
@@ -65,17 +70,19 @@ fn abs_sin() {
 
 #[test]
 fn asin() {
+    setup();
     test_f_df_over_interval(
         |x| x.asin(),
         |x| x.asin(),
         |x| 1f64 / (1f64 - x.powi(2)).sqrt(),
-        1f64,
-        -1f64,
+        0.99,
+        -0.99,
     );
 }
 
 #[test]
 fn sqrt_plus_cos() {
+    setup();
     test_f_df_over_interval(
         |x| AD::from(2f64)*x.sqrt() - x.cos(),
         |x| 2f64 *x.sqrt() - x.cos(),
@@ -86,7 +93,20 @@ fn sqrt_plus_cos() {
 }
 
 #[test]
+fn tan() {
+    setup();
+    test_f_df_over_interval(
+        |x| x.tan(),
+        |x| x.tan(),
+        |x| 1f64 / x.cos().powi(2),
+        -PI/6f64,
+        PI/6f64,
+    );
+}
+
+#[test]
 fn acos_atan() {
+    setup();
     test_f_df_over_interval(
         |x| x.acos().atan(),
         |x| x.acos().atan(),
@@ -98,6 +118,7 @@ fn acos_atan() {
 
 #[test]
 fn cosh_plus_sinh() {
+    setup();
     test_f_df_over_interval(
         |x| x.cosh() + x.sinh(),
         |x| x.cosh() + x.sinh(),
@@ -108,7 +129,8 @@ fn cosh_plus_sinh() {
 }
 
 #[test]
-fn acosh_x_asinh() {
+fn acosh_asinh() {
+    setup();
     test_f_df_over_interval(
         |x| x.acosh() * x.asinh(),
         |x| x.acosh() * x.asinh(),
@@ -120,6 +142,7 @@ fn acosh_x_asinh() {
 
 #[test]
 fn tanh_atanh() {
+    setup();
     test_f_df_over_interval(
         |x| x.tanh().atanh(),
         |x| x.tanh().atanh(),

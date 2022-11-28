@@ -58,7 +58,7 @@ impl Div for AD {
     fn div(self, rhs: Self) -> Self::Output {
         AD(
             self.0 / rhs.0,
-            self.1 / rhs.0 - (self.0 * rhs.1) / (rhs.0 * rhs.0),
+            self.1 / rhs.0 - (self.0 * rhs.1) / rhs.0.powi(2),
         )
     }
 }
