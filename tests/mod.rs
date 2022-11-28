@@ -1,6 +1,7 @@
 mod cav2d;
 mod core;
 pub mod test_helpers;
+mod cav3d;
 
 use log::LevelFilter;
 use std::io::Write;

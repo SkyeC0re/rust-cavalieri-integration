@@ -137,14 +137,13 @@ fn c2d_parabola() {
     );
 }
 
-/* 2D Riemann Stieltjes Tests */
+/* Riemann Stieltjes Tests */
 
 fn test_rs2d(
     f_expr: &str,
     g_expr: &str,
     intervals_expr: &str,
     f: impl Fn(AD) -> AD,
-    //g: impl Fn(AD) -> AD,
     c_integ_over_monotone_intervals: Vec<(Box<dyn Fn(AD) -> AD>, [f64; 2], f64)>,
     tol: f64,
 ) {

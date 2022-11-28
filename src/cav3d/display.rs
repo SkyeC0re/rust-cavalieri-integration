@@ -3,7 +3,7 @@ use pyo3::pyclass;
 use crate::{
     core::{
         differentiable::{abs_jacobian_det, AD},
-        helpers::{linspace, n_linspace},
+        helpers::{n_vec_from_res, vec_from_res},
         integrate::gauss_kronrod_quadrature_triangle,
         triangulation::triangulate_polygon_set,
     },
@@ -33,11 +33,11 @@ impl CavDisplay3D {
         cfg: &DisplayConfig3D,
     ) -> Self {
         let xvs = [
-            n_linspace(&triag[1], &triag[2], cfg.x_res),
-            n_linspace(&triag[2], &triag[0], cfg.x_res),
-            n_linspace(&triag[0], &triag[1], cfg.x_res),
+            n_vec_from_res(&triag[1], &triag[2], cfg.x_res),
+            n_vec_from_res(&triag[2], &triag[0], cfg.x_res),
+            n_vec_from_res(&triag[0], &triag[1], cfg.x_res),
         ];
-        let yrv = linspace(0f64, 1f64, cfg.y_res);
+        let yrv = vec_from_res(0f64, 1f64, cfg.y_res);
         let g = |x: [f64; 2]| {
             let mut cfx = c(f(x));
             cfx[0] = x[0] - cfx[0];
@@ -51,7 +51,7 @@ impl CavDisplay3D {
             gen_display_curtain(&f, &c, &xvs[2], &yrv),
         ];
 
-        let radrv = linspace(0f64, 1f64, cfg.radial_res);
+        let radrv = vec_from_res(0f64, 1f64, cfg.radial_res);
 
         let center = [
             (triag[0][0] + triag[1][0] + triag[2][0]) / 3f64,
