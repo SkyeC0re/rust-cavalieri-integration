@@ -44,20 +44,6 @@ pub struct DisplayConfig2D {
     pub tol: f64,
 }
 
-impl Default for DisplayConfig2D {
-    fn default() -> Self {
-        Self {
-            compute_integ: false,
-            x_res: 100,
-            y_res: 100,
-            interm_cs: 4,
-            max_rf_iters: 500,
-            max_int_iters: 500,
-            tol: 1e-9,
-        }
-    }
-}
-
 struct XConvergency {
     pub max_iters: usize,
     pub tol: f64,
@@ -75,31 +61,6 @@ impl Convergency<f64> for XConvergency {
     fn is_iteration_limit_reached(&mut self, iter: usize) -> bool {
         iter >= self.max_iters
     }
-}
-
-pub fn gen_display_grid_cav(
-    f: impl Fn(f64) -> f64,
-    c: impl Fn(f64) -> f64,
-    xv: &[f64],
-    yrv: &[f64],
-) -> Vec<Vec<[f64; 2]>> {
-    let c_0 = c(0f64);
-    let c = |y: f64| c(y) - c_0;
-    let g = |x: f64| x - c(f(x));
-    let xrv: Vec<f64> = xv.into_iter().copied().map(|x| g(x)).collect();
-
-    yrv.into_iter()
-        .copied()
-        .map(|yr| {
-            xrv.iter()
-                .zip(xv.into_iter())
-                .map(|(&xr, &x)| {
-                    let y = yr * f(x);
-                    [xr + c(y), y]
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect()
 }
 
 pub fn gen_display_cav(
@@ -381,20 +342,6 @@ pub fn split_strictly_monotone(
     }
 
     Ok(roots)
-}
-
-pub fn is_strictly_monotone(v: &[f64]) -> bool {
-    if v.len() < 2 {
-        return true;
-    }
-    let expected_sign = match (v[1] - v[0]).sign() {
-        Sign::POS => Sign::POS,
-        Sign::NEG => Sign::NEG,
-        _ => return false,
-    };
-    (2..v.len())
-        .into_iter()
-        .all(|i| (v[i] - v[i - 1]).sign() == expected_sign)
 }
 
 pub fn split_translational(

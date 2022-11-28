@@ -1,4 +1,4 @@
-use std::{mem::swap, rc::Rc, f64::consts::PI};
+use std::{f64::consts::PI, mem::swap};
 
 use approx::assert_abs_diff_eq;
 use cavint::{
@@ -9,9 +9,11 @@ use cavint::{
     pyo3_wrappers::{display_cav2d, display_cav2d_rs},
 };
 use log::debug;
-use ordered_float::OrderedFloat;
 
-use crate::{setup, test_helpers::{assert_float_iters_equal, IteratorMean}};
+use crate::{
+    setup,
+    test_helpers::{assert_float_iters_equal, IteratorMean},
+};
 
 /* 2D Cavalieri Tests */
 
@@ -21,14 +23,14 @@ fn test_c2d(
     intervals_expr: &str,
     f: impl Fn(AD) -> AD,
     c: impl Fn(AD) -> AD,
-    monotone_intervals: Vec<[f64; 2]>,
+    integ_over_monotone_intervals: Vec<([f64; 2], f64)>,
     tol: f64,
 ) {
     let displays = display_cav2d(
         f_expr.to_string(),
         c_expr.to_string(),
         intervals_expr.to_string(),
-        false,
+        true,
         50,
         50,
         1,
@@ -38,17 +40,23 @@ fn test_c2d(
     )
     .expect("Expected displays");
 
-    assert_eq!(displays.len(), monotone_intervals.len());
+    assert_eq!(displays.len(), integ_over_monotone_intervals.len());
 
     let g = |x: AD| x - c(f(x));
 
     displays
         .into_iter()
-        .zip(monotone_intervals.into_iter())
-        .for_each(|(display, monotone_interval)| {
+        .zip(integ_over_monotone_intervals.into_iter())
+        .for_each(|(display, (monotone_interval, expected_integ_val))| {
             debug!("INTERVAL: {:?}", &monotone_interval);
             assert_abs_diff_eq!(display.a, monotone_interval[0], epsilon = tol);
             assert_abs_diff_eq!(display.b, monotone_interval[1], epsilon = tol);
+
+            assert_abs_diff_eq!(
+                display.integ_value.expect("Expected integration value").0,
+                expected_integ_val,
+                epsilon = tol
+            );
 
             let expected_xv = vec_from_res(monotone_interval[0], monotone_interval[1], 50);
             debug!("xv assertions");
@@ -106,7 +114,7 @@ fn c2d_constant() {
         "[0, 1]",
         |_x| 4f64.into(),
         |_y| 0f64.into(),
-        vec![[0f64, 1f64]],
+        vec![([0f64, 1f64], 4f64)],
         1e-9,
     );
 }
@@ -114,13 +122,17 @@ fn c2d_constant() {
 #[test]
 fn c2d_parabola() {
     setup();
+    let anti_derivative = |x: f64| x.powi(4) / 2f64 - x.powi(3) / 3f64 - x.powi(2) + x;
     test_c2d(
         "-x**2 + 1",
         "-y",
         "[1.23, -0.27]",
         |x| -x.powi(2) + 1f64.into(),
         |y| -y,
-        vec![[1.23, 0.5], [0.5, -0.27]],
+        vec![
+            ([1.23, 0.5], anti_derivative(0.5) - anti_derivative(1.23)),
+            ([0.5, -0.27], anti_derivative(-0.27) - anti_derivative(0.5)),
+        ],
         1e-9,
     );
 }
@@ -133,14 +145,14 @@ fn test_rs2d(
     intervals_expr: &str,
     f: impl Fn(AD) -> AD,
     //g: impl Fn(AD) -> AD,
-    c_over_monotone_intervals: Vec<(Box<dyn Fn(AD) -> AD>, [f64; 2])>,
+    c_integ_over_monotone_intervals: Vec<(Box<dyn Fn(AD) -> AD>, [f64; 2], f64)>,
     tol: f64,
 ) {
     let displays = display_cav2d_rs(
         f_expr.to_string(),
         g_expr.to_string(),
         intervals_expr.to_string(),
-        false,
+        true,
         50,
         50,
         1,
@@ -150,14 +162,20 @@ fn test_rs2d(
     )
     .expect("Expected displays");
 
-    assert_eq!(displays.len(), c_over_monotone_intervals.len());
+    assert_eq!(displays.len(), c_integ_over_monotone_intervals.len());
     displays
         .into_iter()
-        .zip(c_over_monotone_intervals.into_iter())
-        .for_each(|(display, (c, monotone_interval))| {
+        .zip(c_integ_over_monotone_intervals.into_iter())
+        .for_each(|(display, (c, monotone_interval, expected_integ_val))| {
             debug!("INTERVAL: {:?}", &monotone_interval);
             assert_abs_diff_eq!(display.a, monotone_interval[0], epsilon = tol);
             assert_abs_diff_eq!(display.b, monotone_interval[1], epsilon = tol);
+
+            assert_abs_diff_eq!(
+                display.integ_value.expect("Expected integration value").0,
+                expected_integ_val,
+                epsilon = tol
+            );
 
             let expected_xv = vec_from_res(monotone_interval[0], monotone_interval[1], 50);
 
@@ -173,24 +191,14 @@ fn test_rs2d(
 
             debug!("g assertions");
             let tilde_g = |x: AD| x - c(f(x));
-            let k = display.gv[1..display.gv.len() - 1].iter().copied().zip(display.xv[1..display.xv.len() - 1].iter().copied())
-            .map(|(x_r, x_s)| x_r - tilde_g.f(x_s))
-            .mean();
+            let k = display.gv[1..display.gv.len() - 1]
+                .iter()
+                .copied()
+                .zip(display.xv[1..display.xv.len() - 1].iter().copied())
+                .map(|(x_r, x_s)| x_r - tilde_g.f(x_s))
+                .mean();
 
             debug!("k: {}", k);
-
-            println!(
-                "{:?}",
-                display.gv[1..display.gv.len() - 1]
-                    .iter()
-                    .copied()
-                    .zip(
-                        expected_xv[1..expected_xv.len() - 1]
-                            .iter()
-                            .map(|x| tilde_g.f(*x))
-                    )
-                    .collect::<Vec<_>>()
-            );
             assert_float_iters_equal(
                 display.gv[1..display.gv.len() - 1].iter().copied(),
                 expected_xv[1..expected_xv.len() - 1]
@@ -199,14 +207,6 @@ fn test_rs2d(
                 tol,
             );
 
-            println!("dgv: {:?}", &display.dgv);
-            println!(
-                "cdgv: {:?}",
-                &expected_xv
-                    .iter()
-                    .map(|x| tilde_g.df(*x))
-                    .collect::<Vec<_>>()
-            );
             debug!("dg assertions");
             assert_float_iters_equal(
                 display.dgv[1..display.dgv.len() - 1].iter().copied(),
@@ -238,11 +238,11 @@ fn test_rs2d(
                 // Finite x-axis intersection
                 assert!(cv[0][1].is_finite());
 
-                let true_ck_k_val =  cv
-                .iter()
-                .filter(|[y, _]| y_a < *y && *y < y_b)
-                .map(|&[y, x]| x - c.f(y))
-                .mean();
+                let true_ck_k_val = cv
+                    .iter()
+                    .filter(|[y, _]| y_a < *y && *y < y_b)
+                    .map(|&[y, x]| x - c.f(y))
+                    .mean();
 
                 let fx = f.f(expected_xv[expected_xv_index]);
                 let expected_yv = yr.iter().map(|r| *r * fx).collect::<Vec<_>>();
@@ -257,7 +257,7 @@ fn test_rs2d(
                 assert_float_iters_equal(
                     internal_c_x.into_iter(),
                     expected_internal_c_x.into_iter(),
-                    2f64 * tol, // Additional allowance. Multiple computations at `tol` precision. 
+                    2f64 * tol, // Additional allowance. Multiple computations at `tol` precision.
                 );
             }
         });
@@ -271,7 +271,7 @@ fn rs2d_linear() {
         "-x",
         "[0, 1]",
         |x| x * 4f64.into(),
-        vec![(Box::new(|y: AD| AD(0.5, 0f64) * y), [0f64, 1f64])],
+        vec![(Box::new(|y: AD| AD(0.5, 0f64) * y), [0f64, 1f64], -2f64)],
         1e-9,
     );
 }
@@ -282,13 +282,24 @@ fn rs2d_parabola() {
     let f_inv1 = |y: AD| AD::sqrt(ONE - y);
     let c1 = move |y: AD| f_inv1(y) - f_inv1(y).powi(2);
     let c2 = move |y: AD| -f_inv1(y) - f_inv1(y).powi(2);
-
+    let anti_derivative = |x: f64| -x.powi(4) / 2f64 + x.powi(2);
     test_rs2d(
         "-x**2 + 1",
         "x**2",
         "[1, -1]",
         |x| -x.powi(2) + 1f64.into(),
-        vec![(Box::new(c1), [1f64, 0f64]), (Box::new(c2), [0f64, -1f64])],
+        vec![
+            (
+                Box::new(c1),
+                [1f64, 0f64],
+                anti_derivative(0f64) - anti_derivative(1f64),
+            ),
+            (
+                Box::new(c2),
+                [0f64, -1f64],
+                anti_derivative(-1f64) - anti_derivative(0f64),
+            ),
+        ],
         1e-9,
     );
 }
@@ -297,15 +308,26 @@ fn rs2d_parabola() {
 fn rs2d_parabola_above() {
     setup();
     let f_inv1 = |y: AD| AD::sqrt(AD::from(3f64) - y);
-    let c1 = move |y: AD| f_inv1(y) + AD::from(3f64)*f_inv1(y);
-    let c2 = move |y: AD| -f_inv1(y) - AD::from(3f64)*f_inv1(y);
-
+    let c1 = move |y: AD| f_inv1(y) + AD::from(3f64) * f_inv1(y);
+    let c2 = move |y: AD| -f_inv1(y) - AD::from(3f64) * f_inv1(y);
+    let anti_derivative = |x: f64| x.powi(3) - 9f64 * x;
     test_rs2d(
         "-x**2 +3",
         "-3*x",
         "[-1.53, 1.5]",
         |x| -x.powi(2) + 3f64.into(),
-        vec![(Box::new(c2), [-1.53f64, 0f64]), (Box::new(c1), [0f64, 1.5f64])],
+        vec![
+            (
+                Box::new(c2),
+                [-1.53, 0f64],
+                anti_derivative(0f64) - anti_derivative(-1.53),
+            ),
+            (
+                Box::new(c1),
+                [0f64, 1.5],
+                anti_derivative(1.5) - anti_derivative(0f64),
+            ),
+        ],
         1e-10,
     );
 }
@@ -315,13 +337,17 @@ fn rs2d_sine_below() {
     setup();
     let f_inv = |y: AD| AD::asin(AD::from(1f64) + y);
     let c = move |y: AD| f_inv(y) - f_inv(y).powi(2);
-
+    let anti_derivative = |x: f64| 2f64 * (x.sin() - x * x.cos()) - x.powi(2);
     test_rs2d(
         "sin(x) - 1",
         "x**2",
         "[0, pi/4]",
         |x| x.sin() - AD::from(1f64),
-        vec![(Box::new(c), [0f64, PI/4f64])],
+        vec![(
+            Box::new(c),
+            [0f64, PI / 4f64],
+            anti_derivative(PI / 4f64) - anti_derivative(0f64),
+        )],
         1e-10,
     );
 }
