@@ -1,6 +1,3 @@
-
-use std::fmt::Display;
-
 use pyo3::{exceptions::PyRuntimeError, PyErr};
 use roots::SearchError;
 use thiserror::Error;
@@ -9,7 +6,7 @@ use crate::core::triangulation::{PType, Pt};
 #[derive(Debug, Error)]
 pub enum PyProxyError {
     #[error("{0}")]
-   Error(String)
+    Error(String),
 }
 
 impl From<ParsedFuncError> for PyProxyError {

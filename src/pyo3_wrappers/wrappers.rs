@@ -2,14 +2,13 @@ use pyo3::prelude::*;
 
 use pyo3::PyResult;
 
-use crate::cav2d::display::gen_display_rs;
-use crate::cav2d::display::{gen_display_cav, CavDisplay2D, DisplayConfig2D};
+use crate::cav2d::display::CavDisplay2D;
 
 use crate::cav3d::display::gen_display_cav as gen_display_cav3d;
 use crate::cav3d::display::CavDisplay3D;
 use crate::cav3d::display::DisplayConfig3D;
 use crate::core::parsing::compile_expression;
-use crate::core::parsing::compile_interval_list;
+
 use crate::core::parsing::compile_polygon_set;
 use crate::core::parsing::DefaultContext;
 

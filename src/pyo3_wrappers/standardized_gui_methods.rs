@@ -1,5 +1,3 @@
-use pyo3::PyResult;
-
 use crate::cav2d::display::{gen_display_cav, gen_display_rs, DisplayConfig2D};
 use crate::errors::PyProxyError;
 use crate::{

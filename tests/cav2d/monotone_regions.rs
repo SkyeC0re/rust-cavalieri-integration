@@ -1,7 +1,10 @@
 use approx::assert_abs_diff_eq;
 use cavint::{
     cav2d::display::split_strictly_monotone,
-    core::{differentiable::{AD, ONE, Differentiable1D}, helpers::linspace},
+    core::{
+        differentiable::{Differentiable1D, AD, ONE},
+        helpers::linspace,
+    },
 };
 
 fn standard_test(
@@ -12,17 +15,11 @@ fn standard_test(
     tol: f64,
     expected_roots: Vec<f64>,
 ) {
-    let roots = split_strictly_monotone(
-        f,
-        &linspace(a, b, points),
-        tol,
-        500,
-    )
-    .unwrap();
+    let roots = split_strictly_monotone(f, &linspace(a, b, points), tol, 500).unwrap();
 
     assert_eq!(roots.len(), expected_roots.len());
     for (ar, er) in roots.into_iter().zip(expected_roots.into_iter()) {
-        assert_abs_diff_eq!(ar, er, epsilon=tol)
+        assert_abs_diff_eq!(ar, er, epsilon = tol)
     }
 }
 
@@ -43,14 +40,7 @@ fn test_saddle() {
 #[test]
 fn test_saddle2() {
     setup();
-    standard_test(
-        &|x: AD| x.powi(3),
-        -10f64,
-        10f64,
-        100,
-        1e-9,
-        vec![],
-    );
+    standard_test(&|x: AD| x.powi(3), -10f64, 10f64, 100, 1e-9, vec![]);
 }
 
 #[test]

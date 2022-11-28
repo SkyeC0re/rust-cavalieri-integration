@@ -3,7 +3,7 @@ use std::{cmp::Ordering, mem::swap};
 use crate::{
     core::{
         differentiable::{Differentiable1D, AD},
-        helpers::{vec_from_res, Sign, Signed},
+        helpers::{vec_from_res, Signed},
         integrate::gauss_kronrod_quadrature,
     },
     errors::Display2DError,
@@ -208,7 +208,7 @@ pub fn gen_display_rs(
             if !(max_f_dcy.abs() < p_decay_max) {
                 max_f_dcy = 0f64;
             }
-            
+
             let cx = |x: f64| x - g.f(x);
             let min_f_cy = cx(min_x);
             let max_f_cy = cx(max_x);
@@ -360,10 +360,7 @@ pub fn split_translational(
     let f_roots = split_strictly_monotone(f, xv, tol, max_rf_iters)?;
     let g_roots = split_strictly_monotone(g, xv, tol, max_rf_iters)?;
 
-    let mut merged_roots: Vec<f64> = f_roots
-        .into_iter()
-        .chain(g_roots.into_iter())
-        .collect();
+    let mut merged_roots: Vec<f64> = f_roots.into_iter().chain(g_roots.into_iter()).collect();
 
     merged_roots.sort_by(|a, b| {
         let sdiff = x_sign * (a - b);

@@ -19,7 +19,7 @@ where
     fn mean(self) -> f64;
 }
 
-impl<I: Iterator<Item=f64>> IteratorMean for I {
+impl<I: Iterator<Item = f64>> IteratorMean for I {
     fn mean(self) -> f64 {
         let avg_sum = self.fold((0usize, 0f64), |mut acc, x| {
             acc.0 += 1;

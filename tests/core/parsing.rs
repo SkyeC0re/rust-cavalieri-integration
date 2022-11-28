@@ -69,16 +69,19 @@ fn break_me() {
 
 #[test]
 fn break_me_safe_is_standard() {
-    test_safe_is_standard_xy(
-        "ln(-(-(e^(x+y**0)))) / y / -cos(0)",
-        [PI, 2f64],
-    );
+    test_safe_is_standard_xy("ln(-(-(e^(x+y**0)))) / y / -cos(0)", [PI, 2f64]);
 }
 
 #[test]
 fn constant_expression() {
     let context = DefaultContext::default();
-    assert_abs_diff_eq!(compile_expression::<0, f64>("(1+2)", &context).unwrap().eval(&[]), 3f64, epsilon = 1e-13);
+    assert_abs_diff_eq!(
+        compile_expression::<0, f64>("(1+2)", &context)
+            .unwrap()
+            .eval(&[]),
+        3f64,
+        epsilon = 1e-13
+    );
 }
 
 #[test]
@@ -122,7 +125,7 @@ fn missing_expression() {
 #[test]
 fn missing_function_parenthesis() {
     let mut context = DefaultContext::default();
-    let f = |x:f64| x;
+    let f = |x: f64| x;
     context.add_func("f", &f);
     assert!(compile_expression::<2, f64>("f5", &context).is_err());
     assert!(compile_expression::<2, f64>("f(5", &context).is_err());
@@ -176,7 +179,8 @@ fn extra_and_misaligned_interval_brackets() {
 #[test]
 fn single_polgyonl() {
     let expected = vec![vec![[0f64, 1f64], [2f64, 3f64], [4f64, 5f64]]];
-    let actual = compile_polygon_set("[[0,  1], [2,3], [4, 5]]", DefaultContext::default()).unwrap();
+    let actual =
+        compile_polygon_set("[[0,  1], [2,3], [4, 5]]", DefaultContext::default()).unwrap();
 
     assert_eq!(expected, actual)
 }
@@ -187,22 +191,44 @@ fn multiple_polygons() {
         vec![[0f64, 1f64], [2f64, 3f64], [4f64, 5f64]],
         vec![[6f64, 7f64], [8f64, 9f64], [10f64, 11f64]],
     ];
-    let actual =
-        compile_polygon_set("[[0, 1], [2, 3], [4, 5]],[[6, 7], [8, 9], [10, 11]]", DefaultContext::default()).unwrap();
+    let actual = compile_polygon_set(
+        "[[0, 1], [2, 3], [4, 5]],[[6, 7], [8, 9], [10, 11]]",
+        DefaultContext::default(),
+    )
+    .unwrap();
 
     assert_eq!(expected, actual)
 }
 
 #[test]
 fn missing_poly_set_brackets() {
-    assert!(compile_polygon_set("[[0, 1], [2, 3], [4, 5],[[6, 7], [8, 9], [10, 11]]", DefaultContext::default()).is_err());
-    assert!(compile_interval_list("[[0, 1], [2, 3], [4, 5]],[6, 7], [8, 9], [10, 11]]", DefaultContext::default()).is_err());
+    assert!(compile_polygon_set(
+        "[[0, 1], [2, 3], [4, 5],[[6, 7], [8, 9], [10, 11]]",
+        DefaultContext::default()
+    )
+    .is_err());
+    assert!(compile_interval_list(
+        "[[0, 1], [2, 3], [4, 5]],[6, 7], [8, 9], [10, 11]]",
+        DefaultContext::default()
+    )
+    .is_err());
 }
 
 #[test]
 fn extra_and_misaligned_poly_set_brackets() {
-    assert!(compile_interval_list("[[0, 1], [2, 3], [4, 5]]],[[6, 7], [8, 9], [10, 11]]", DefaultContext::default()).is_err());
-    assert!(compile_interval_list("[[0, 1], [2, 3], [4, 5]],[[6, 7], [8, 9], [10, 11]]]", DefaultContext::default()).is_err());
-    assert!(compile_interval_list("[[0, 1], [2, 3], [4, 5],][[6, 7], [8, 9], [10, 11]]", DefaultContext::default()).is_err());
+    assert!(compile_interval_list(
+        "[[0, 1], [2, 3], [4, 5]]],[[6, 7], [8, 9], [10, 11]]",
+        DefaultContext::default()
+    )
+    .is_err());
+    assert!(compile_interval_list(
+        "[[0, 1], [2, 3], [4, 5]],[[6, 7], [8, 9], [10, 11]]]",
+        DefaultContext::default()
+    )
+    .is_err());
+    assert!(compile_interval_list(
+        "[[0, 1], [2, 3], [4, 5],][[6, 7], [8, 9], [10, 11]]",
+        DefaultContext::default()
+    )
+    .is_err());
 }
-

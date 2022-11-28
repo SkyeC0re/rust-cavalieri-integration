@@ -1,7 +1,7 @@
 use std::f64::consts::PI;
 
 use cavint::core::{
-    differentiable::{Differentiable1D, AD, ONE},
+    differentiable::{Differentiable1D, AD},
     helpers::{linspace, Signed},
 };
 
@@ -32,10 +32,22 @@ fn pow2() {
 
 #[test]
 fn pow_xx() {
-    test_f_df_over_interval(|x| x.pow(x), |x| x.powf(x), |x| x.powf(x) * (1f64 + x.ln()), 2f64, 3f64);
+    test_f_df_over_interval(
+        |x| x.pow(x),
+        |x| x.powf(x),
+        |x| x.powf(x) * (1f64 + x.ln()),
+        2f64,
+        3f64,
+    );
 }
 
 #[test]
 fn abs_sin_asin() {
-    test_f_df_over_interval(|x| x.sin().abs(), |x| x.sin().abs(), |x| x.sign_val() * x.cos(), -PI, PI);
+    test_f_df_over_interval(
+        |x| x.sin().abs(),
+        |x| x.sin().abs(),
+        |x| x.sign_val() * x.cos(),
+        -PI,
+        PI,
+    );
 }
