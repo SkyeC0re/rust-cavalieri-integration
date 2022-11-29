@@ -1,4 +1,4 @@
-use std::fmt::{Display, Debug};
+use std::fmt::{Debug, Display};
 
 use pyo3::{exceptions::PyRuntimeError, PyErr};
 use roots::SearchError;

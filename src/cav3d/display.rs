@@ -147,7 +147,7 @@ pub fn gen_display_curtain(
     };
     let xrv: Vec<[f64; 2]> = xv.into_iter().map(|&x| g(x)).collect();
     let fv: Vec<f64> = xv.into_iter().map(|&x| f(x)).collect();
-  
+
     yrv.into_iter()
         .copied()
         .map(|yr| {

@@ -1,5 +1,5 @@
 use crate::cav2d::display::{gen_display_cav, gen_display_rs, DisplayConfig2D};
-use crate::cav3d::display::{CavDisplay3D, DisplayConfig3D, gen_display_cav as gen_display_cav3d};
+use crate::cav3d::display::{gen_display_cav as gen_display_cav3d, CavDisplay3D, DisplayConfig3D};
 use crate::core::parsing::compile_polygon_set;
 use crate::errors::PyProxyError;
 use crate::{
@@ -91,7 +91,7 @@ pub fn display_cav3d(
     y_res: usize,
     max_int_iters: usize,
     tol: f64,
-) ->Result<Vec<CavDisplay3D>, PyProxyError> {
+) -> Result<Vec<CavDisplay3D>, PyProxyError> {
     let mut f_context = DefaultContext::default();
     f_context.add_var("x", 0);
     f_context.add_var("y", 1);

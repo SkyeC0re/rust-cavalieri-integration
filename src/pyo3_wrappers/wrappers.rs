@@ -4,13 +4,7 @@ use pyo3::PyResult;
 
 use crate::cav2d::display::CavDisplay2D;
 
-use crate::cav3d::display::gen_display_cav as gen_display_cav3d;
 use crate::cav3d::display::CavDisplay3D;
-use crate::cav3d::display::DisplayConfig3D;
-use crate::core::parsing::compile_expression;
-
-use crate::core::parsing::compile_polygon_set;
-use crate::core::parsing::DefaultContext;
 
 use super::display_cav3d;
 use super::standardized_gui_methods::display_cav2d;
@@ -96,5 +90,6 @@ pub fn wrapped_display_cav3d(
         y_res,
         max_int_iters,
         tol,
-    ).map_err(|err| err.into())
+    )
+    .map_err(|err| err.into())
 }
