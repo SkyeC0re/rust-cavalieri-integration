@@ -10,7 +10,7 @@ use super::display_cav3d;
 use super::standardized_gui_methods::display_cav2d;
 use super::standardized_gui_methods::display_cav2d_rs;
 
-#[pyfunction]
+#[pyfunction(name="display_cav2d")]
 pub fn wrapped_display_cav2d(
     f_expr: String,
     c_expr: String,
@@ -38,7 +38,7 @@ pub fn wrapped_display_cav2d(
     .map_err(|err| err.into())
 }
 
-#[pyfunction]
+#[pyfunction(name="display_cav2d_rs")]
 pub fn wrapped_display_cav2d_rs(
     f_expr: String,
     g_expr: String,
@@ -66,7 +66,7 @@ pub fn wrapped_display_cav2d_rs(
     .map_err(|err| err.into())
 }
 
-#[pyfunction]
+#[pyfunction(name="display_cav3d")]
 pub fn wrapped_display_cav3d(
     f_expr: String,
     c1_expr: String,

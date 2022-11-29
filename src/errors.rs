@@ -67,7 +67,7 @@ pub enum ParsedFuncError {
 
 impl From<nom::Err<String>> for ParsedFuncError {
     fn from(err: nom::Err<String>) -> Self {
-        ParsedFuncError::ParsingError(format!("{:?}", err))
+        ParsedFuncError::ParsingError(format!("{}", err))
     }
 }
 
@@ -101,18 +101,6 @@ impl From<IntegError> for Display2DError {
     }
 }
 
-// impl From<Display2DError> for PyErr {
-//     fn from(e: Display2DError) -> Self {
-//         PyRuntimeError::new_err(format!("{}", e))
-//     }
-// }
-
-// impl From<ParsedFuncError> for PyErr {
-//     fn from(e: ParsedFuncError) -> Self {
-//         PyRuntimeError::new_err(format!("{}", e))
-//     }
-// }
-
 #[derive(Debug, Error)]
 pub enum Display3DError {
     #[error("{0}")]
@@ -133,12 +121,6 @@ impl From<IntegError> for Display3DError {
         Display3DError::IntegrationError(ie)
     }
 }
-
-// impl From<Display3DError> for PyErr {
-//     fn from(e: Display3DError) -> Self {
-//         PyRuntimeError::new_err(format!("{}", e))
-//     }
-// }
 
 #[derive(Debug, Error)]
 pub enum IntegError {
