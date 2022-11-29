@@ -1,29 +1,39 @@
+use std::fmt::{Display, Debug};
+
 use pyo3::{exceptions::PyRuntimeError, PyErr};
 use roots::SearchError;
 use thiserror::Error;
 
 use crate::core::triangulation::{PType, Pt};
-#[derive(Debug, Error)]
-pub enum PyProxyError {
-    #[error("{0}")]
-    Error(String),
+pub struct PyProxyError(String);
+
+impl Debug for PyProxyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Display for PyProxyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 impl From<ParsedFuncError> for PyProxyError {
     fn from(e: ParsedFuncError) -> Self {
-        PyProxyError::Error(format!("{}", e))
+        Self(format!("{}", e))
     }
 }
 
 impl From<Display2DError> for PyProxyError {
     fn from(e: Display2DError) -> Self {
-        PyProxyError::Error(format!("{}", e))
+        PyProxyError(format!("{}", e))
     }
 }
 
 impl From<Display3DError> for PyProxyError {
     fn from(e: Display3DError) -> Self {
-        PyProxyError::Error(format!("{}", e))
+        PyProxyError(format!("{}", e))
     }
 }
 
@@ -36,8 +46,8 @@ impl From<PyProxyError> for PyErr {
 /// An error that can occur during parsing
 #[derive(Debug, Error)]
 pub enum ParsedFuncError {
-    #[error("Unexpected value: {}", err)]
-    ValueError { err: String },
+    #[error("Unexpected value: {0}")]
+    ValueError(String),
 
     #[error("Variable, constant or function name '{0}' is not valid")]
     BadName(String),
@@ -45,8 +55,8 @@ pub enum ParsedFuncError {
     #[error("Name '{0}' already present in variable, constant and function name declarations")]
     NameTaken(String),
 
-    #[error("Nom parsing error: {0}")]
-    NomError(String),
+    #[error("{0}")]
+    ParsingError(String),
 
     #[error("Parsing did not consume entire expression at '...{0}'")]
     ResidueError(String),
@@ -57,7 +67,7 @@ pub enum ParsedFuncError {
 
 impl From<nom::Err<String>> for ParsedFuncError {
     fn from(err: nom::Err<String>) -> Self {
-        ParsedFuncError::NomError(format!("{:?}", err))
+        ParsedFuncError::ParsingError(format!("{:?}", err))
     }
 }
 
@@ -66,7 +76,7 @@ pub enum Display2DError {
     #[error("Maximum allowed bisections exceeded")]
     MaxHintBisectionsExceeded,
 
-    #[error("Root did not converge: Peroxide Error: {0}")]
+    #[error("Root did not converge: {0}")]
     RootError(String),
 
     #[error("Non monotone region found after root detection")]
@@ -75,8 +85,8 @@ pub enum Display2DError {
     #[error("BadInput: {0}")]
     BadInput(String),
 
-    #[error("Integration Error: {}", err)]
-    IntegrationError { err: IntegError },
+    #[error("{0}")]
+    IntegrationError(IntegError),
 }
 
 impl From<SearchError> for Display2DError {
@@ -87,29 +97,29 @@ impl From<SearchError> for Display2DError {
 
 impl From<IntegError> for Display2DError {
     fn from(ie: IntegError) -> Self {
-        Display2DError::IntegrationError { err: ie }
+        Display2DError::IntegrationError(ie)
     }
 }
 
-impl From<Display2DError> for PyErr {
-    fn from(e: Display2DError) -> Self {
-        PyRuntimeError::new_err(format!("{}", e))
-    }
-}
+// impl From<Display2DError> for PyErr {
+//     fn from(e: Display2DError) -> Self {
+//         PyRuntimeError::new_err(format!("{}", e))
+//     }
+// }
 
-impl From<ParsedFuncError> for PyErr {
-    fn from(e: ParsedFuncError) -> Self {
-        PyRuntimeError::new_err(format!("{}", e))
-    }
-}
+// impl From<ParsedFuncError> for PyErr {
+//     fn from(e: ParsedFuncError) -> Self {
+//         PyRuntimeError::new_err(format!("{}", e))
+//     }
+// }
 
 #[derive(Debug, Error)]
 pub enum Display3DError {
-    #[error("Triangulation Error: {0}")]
+    #[error("{0}")]
     TriangulationError(TriangulationError),
 
-    #[error("Integration Error: {}", err)]
-    IntegrationError { err: IntegError },
+    #[error("{0}")]
+    IntegrationError(IntegError),
 }
 
 impl From<TriangulationError> for Display3DError {
@@ -120,15 +130,15 @@ impl From<TriangulationError> for Display3DError {
 
 impl From<IntegError> for Display3DError {
     fn from(ie: IntegError) -> Self {
-        Display3DError::IntegrationError { err: ie }
+        Display3DError::IntegrationError(ie)
     }
 }
 
-impl From<Display3DError> for PyErr {
-    fn from(e: Display3DError) -> Self {
-        PyRuntimeError::new_err(format!("{}", e))
-    }
-}
+// impl From<Display3DError> for PyErr {
+//     fn from(e: Display3DError) -> Self {
+//         PyRuntimeError::new_err(format!("{}", e))
+//     }
+// }
 
 #[derive(Debug, Error)]
 pub enum IntegError {

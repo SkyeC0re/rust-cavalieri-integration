@@ -145,21 +145,21 @@ pub fn gen_display_curtain(
         cfx[1] = x[1] - cfx[1];
         cfx
     };
-    let xrv: Vec<[f64; 2]> = xv.into_iter().copied().map(|x| g(x)).collect();
-
+    let xrv: Vec<[f64; 2]> = xv.into_iter().map(|&x| g(x)).collect();
+    let fv: Vec<f64> = xv.into_iter().map(|&x| f(x)).collect();
+  
     yrv.into_iter()
         .copied()
         .map(|yr| {
-            xrv.iter()
-                .zip(xv.into_iter())
-                .map(|(xr, x)| {
-                    let y = yr * f(*x);
-                    let mut x = c(y);
-                    x[0] += xr[0];
-                    x[1] += xr[1];
-                    [x[0], x[1], y]
-                })
-                .collect::<Vec<_>>()
+            let mut row = Vec::with_capacity(xv.len());
+            for i in 0..xv.len() {
+                let y = yr * fv[i];
+                let mut x = c(y);
+                x[0] += xrv[i][0];
+                x[1] += xrv[i][1];
+                row.push([x[0], x[1], y]);
+            }
+            row
         })
         .collect()
 }
