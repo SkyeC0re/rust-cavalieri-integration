@@ -1,3 +1,5 @@
+use std::f64::consts::PI;
+
 use approx::assert_abs_diff_eq;
 use cavint::{
     core::helpers::{n_vec_from_res, vec_from_res},
@@ -5,7 +7,10 @@ use cavint::{
 };
 use log::debug;
 
-use crate::test_helpers::{assert_float_iters_equal, assert_grids_equal};
+use crate::{
+    setup,
+    test_helpers::{assert_float_iters_equal, assert_grids_equal},
+};
 
 fn test_c3d(
     f_expr: &str,
@@ -137,6 +142,7 @@ fn test_c3d(
 
 #[test]
 fn constant_triangle() {
+    setup();
     test_c3d(
         "2",
         "0",
@@ -145,6 +151,57 @@ fn constant_triangle() {
         |_| 2f64,
         |_| [0f64, 0f64],
         vec![([[0f64, 0f64], [0f64, 1f64], [1f64, 1f64]], 1f64)],
+        1e-9,
+    );
+}
+
+#[test]
+fn prismatoid() {
+    setup();
+    test_c3d(
+        "-x - y + 8",
+        "z/2",
+        "z",
+        "[[4/5, 28/5], [8/5, 16/5], [24/5, 8/5], [4, 4]]",
+        |[x, y]| -x - y + 8f64,
+        |z| [z / 2f64, z],
+        vec![
+            (
+                [
+                    [4f64 / 5f64, 28f64 / 5f64],
+                    [8f64 / 5f64, 16f64 / 5f64],
+                    [4f64, 4f64],
+                ],
+                12.8,
+            ),
+            (
+                [
+                    [8f64 / 5f64, 16f64 / 5f64],
+                    [4f64, 4f64],
+                    [24f64 / 5f64, 8f64 / 5f64],
+                ],
+                12.8,
+            ),
+        ],
+        1e-9,
+    );
+}
+
+#[test]
+fn helix() {
+    setup();
+    let full_integral_value = 2f64*(PI + 1f64.sin() + 2f64*(1f64 - PI)*1f64.cos()) - 4f64 *( 1f64 - PI);
+    test_c3d(
+        "2*pi + x - y",
+        "1-cos(z)",
+        "sin(z)",
+        "[[1, 1], [1,2], [2,2], [2, 1]]",
+        |[x, y]| 2f64 * PI + x - y,
+        |z| [1f64 - z.cos(), z.sin()],
+        vec![
+            ([[1f64, 1f64], [1f64, 2f64], [2f64, 1f64]], full_integral_value/2f64),
+            ([[1f64, 2f64], [2f64, 1f64], [2f64, 2f64]], full_integral_value/2f64),
+        ],
         1e-9,
     );
 }
