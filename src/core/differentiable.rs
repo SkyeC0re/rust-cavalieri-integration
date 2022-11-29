@@ -143,6 +143,7 @@ impl AD {
 pub trait Differentiable1D {
     fn f(&self, x: f64) -> f64;
     fn df(&self, x: f64) -> f64;
+
     fn fdf(&self, x: f64) -> (f64, f64) {
         (self.f(x), self.df(x))
     }

@@ -113,19 +113,6 @@ pub struct DisplayConfig3D {
     pub tol: f64,
 }
 
-impl Default for DisplayConfig3D {
-    fn default() -> Self {
-        Self {
-            compute_integ: false,
-            radial_res: 50,
-            x_res: 50,
-            y_res: 50,
-            max_int_iters: 500,
-            tol: 1e-9,
-        }
-    }
-}
-
 pub fn gen_display_curtain(
     f: impl Fn([f64; 2]) -> f64,
     c: impl Fn(f64) -> [f64; 2],

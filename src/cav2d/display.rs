@@ -212,11 +212,13 @@ pub fn gen_display_rs(
             let cx = |x: f64| x - g.f(x);
             let min_f_cy = cx(min_x);
             let max_f_cy = cx(max_x);
-            let c_raw = |y: f64| {
+            let c_raw = |y: f64| -> Result<f64, Display2DError> {
                 if y < min_fdf.0 {
-                    min_f_cy - min_f_dcy.sign_val() * (min_f_dcy.abs() * (min_fdf.0 - y)).ln_1p()
+                    Ok(min_f_cy
+                        - min_f_dcy.sign_val() * (min_f_dcy.abs() * (min_fdf.0 - y)).ln_1p())
                 } else if y > max_fdf.0 {
-                    max_f_cy + max_f_dcy.sign_val() * (max_f_dcy.abs() * (y - max_fdf.0)).ln_1p()
+                    Ok(max_f_cy
+                        + max_f_dcy.sign_val() * (max_f_dcy.abs() * (y - max_fdf.0)).ln_1p())
                 } else {
                     let x = find_root_brent(
                         min_x,
@@ -226,18 +228,18 @@ pub fn gen_display_rs(
                             tol: cfg.tol,
                             max_iters: cfg.max_rf_iters,
                         },
-                    )
-                    .unwrap_or(f64::NAN);
-                    cx(x)
+                    )?;
+                    Ok(cx(x))
                 }
             };
 
-            let k = c_raw(0f64);
-            let c = |y| c_raw(y) - k;
+            let k = c_raw(0f64)?;
+            let c = |y| c_raw(y).map(|cy| cy - k);
             gv.iter_mut().for_each(|xr| *xr += k);
 
             // Compute required c(y) translations
             let mut cvs = Vec::with_capacity(2 + cfg.interm_cs);
+            let yrv = vec_from_res(0f64, 1f64, cfg.y_res);
             for i in [0]
                 .into_iter()
                 .chain(
@@ -253,13 +255,13 @@ pub fn gen_display_rs(
                 let fx = fv[i];
                 let xr = gv[i];
 
-                let yrv = vec_from_res(0f64, 1f64, cfg.y_res);
-                cvs.push((
-                    i,
-                    yrv.into_iter()
-                        .map(|r| [(r * fx), xr + c(r * fx)])
-                        .collect(),
-                ))
+                cvs.push((i, {
+                    let mut cv = Vec::with_capacity(yrv.len());
+                    for r in yrv.iter().copied() {
+                        cv.push([(r * fx), xr + c(r * fx)?])
+                    }
+                    cv
+                }))
             }
 
             displays.push(CavDisplay2D {
