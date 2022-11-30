@@ -1,11 +1,9 @@
 name: cavalieri-integration-main
-on:
-  push:
-    branches:
-      - main
+on: [push]
+branches: [main]
 
 jobs:
-  many-linux-wheel:
+  coverage:
     runs-on: ubuntu-latest
     env:
       CARGO_TERM_COLOR: always
@@ -22,9 +20,3 @@ jobs:
         with:
           files: lcov.info
           fail_ci_if_error: true
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: PyO3/maturin-action@v1
-        with:
-          command: publish
-          args: -i python3.7
-     
