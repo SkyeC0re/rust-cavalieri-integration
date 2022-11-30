@@ -26,4 +26,5 @@ jobs:
       - uses: PyO3/maturin-action@v1
         with:
           command: publish
+          args: -i python3.7
      
