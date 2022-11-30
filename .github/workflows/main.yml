@@ -1,6 +1,8 @@
 name: cavalieri-integration-main
-on: [push]
-branches: [main]
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   many-linux-wheel:
