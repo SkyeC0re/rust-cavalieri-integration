@@ -9,7 +9,6 @@ use cavint::{
     pyo3_wrappers::{display_cav2d, display_cav2d_rs},
 };
 use log::debug;
-
 use crate::{
     setup,
     test_helpers::{assert_float_iters_equal, IteratorMean},

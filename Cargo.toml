@@ -7,7 +7,7 @@ edition = "2021"
 
 [lib]
 name = "cavint"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib", "lib"]
 
 [dependencies]
 # peroxide = "0.32.1"
