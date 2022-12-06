@@ -5,6 +5,7 @@ edition = "2021"
 authors = ["Christoff van Zyl <stoffel1997@gmail.com>"]
 license-file = "LICENSE"
 description = "A Rust native library for Cavalieri integration."
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
