@@ -2,6 +2,8 @@
 name = "cavint"
 version = "1.0.4"
 edition = "2021"
+authors = ["Christoff van Zyl"]
+license = "GNU General Public License V3.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
