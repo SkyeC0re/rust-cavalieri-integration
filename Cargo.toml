@@ -3,7 +3,6 @@ name = "cavint"
 version = "1.0.4"
 edition = "2021"
 authors = ["Christoff van Zyl <stoffel1997@gmail.com>"]
-license = "GNU General Public License V3.0"
 license-file = "LICENSE"
 description = "A Rust native library for Cavalieri integration."
 
