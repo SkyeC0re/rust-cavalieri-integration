@@ -41,6 +41,16 @@ impl Ord for ApproxInterval {
     }
 }
 
+/// A globally adaptive 10-21 Gauss Kronrod integration routine.
+///
+/// Returns the integration value and estimated error of the integration.
+///
+/// * `f` - The function to integrate
+/// * `a` - Lower integration bound
+/// * `b` - Upper integration bound
+/// * `tol` - The maximum estimated error allowed
+/// * `max_iter` - The maximum amount of adaptive Gauss-Kronrod integration
+///     iterations allowed
 pub fn gauss_kronrod_quadrature(
     f: impl Fn(f64) -> f64,
     a: f64,
@@ -100,6 +110,18 @@ pub fn gauss_kronrod_quadrature(
     Err(IntegError::ConvergenceError)
 }
 
+/// A globally adaptive two dimensional 10-21 Gauss Kronrod integration routine.
+///
+/// Returns the integration value and estimated error of the integration.
+///
+/// * `f` - The function to integrate
+/// * `a` - The outer integral's lower integration bound
+/// * `b` - The outer integral's upper integration bound
+/// * `inner_ab_fn` - A function which specifies the inner integral
+///     lower and upper bounds in terms of the outer integral's bounds
+/// * `tol` - The maximum estimated error allowed
+/// * `max_iter` - The maximum amount of adaptive Gauss-Kronrod integration
+///     iterations allowed for the inner and outer integrals
 pub fn gauss_kronrod_quadrature_2d(
     f: impl Fn([f64; 2]) -> f64,
     a: f64,

@@ -140,6 +140,7 @@ impl AD {
     }
 }
 
+/// A trait for representing differentiable 1-dimensional functions
 pub trait Differentiable1D {
     fn f(&self, x: f64) -> f64;
     fn df(&self, x: f64) -> f64;
@@ -174,6 +175,8 @@ impl<F: Fn(AD) -> AD> Differentiable1D for F {
     }
 }
 
+/// Computes the absolute value of the Jacobian determinant for a differentiable
+/// function $ f : S \subset \mathbb{R}^2 \to \mathbb{R}^2 $.
 pub fn abs_jacobian_det(g: impl Fn([AD; 2]) -> [AD; 2], x: [f64; 2]) -> f64 {
     let c1 = g([AD(x[0], 1f64), AD(x[1], 0f64)]);
     let c2 = g([AD(x[0], 0f64), AD(x[1], 1f64)]);

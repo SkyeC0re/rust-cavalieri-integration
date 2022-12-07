@@ -1,4 +1,5 @@
 #[derive(PartialEq, Eq, Clone, Copy)]
+/// An enum for representing the sign of a numeric type.
 pub enum Sign {
     NEG,
     ZERO,
@@ -6,6 +7,7 @@ pub enum Sign {
     NAN,
 }
 
+/// A trait for determining the sign of a numeric type.
 pub trait Signed: From<Sign> {
     fn sign(&self) -> Sign;
 
@@ -56,6 +58,13 @@ pub fn n_linspace<const N: usize>(a: &[f64; N], b: &[f64; N], mut length: usize)
     vals
 }
 
+/// Generates a vector of linearly spaced points on an interval.
+/// 
+/// Includes both endpoints and will always generate at least 2 points.
+/// 
+/// * `a` - Start of the interval
+/// * `b` - End of the interval
+/// * `length` - The amount of points to generate
 pub fn linspace(a: f64, b: f64, mut length: usize) -> Vec<f64> {
     if length < 2 {
         length = 2
@@ -68,10 +77,26 @@ pub fn linspace(a: f64, b: f64, mut length: usize) -> Vec<f64> {
     vals
 }
 
+/// Generates a vector of linearly spaced points on an interval
+/// from a resolution.
+/// 
+/// Includes both endpoints and will always generate at least 2 points.
+/// 
+/// * `a` - Start of the interval
+/// * `b` - End of the interval
+/// * `res` - Generates `res + 1` points
 pub fn vec_from_res(a: f64, b: f64, res: usize) -> Vec<f64> {
     linspace(a, b, res + 1)
 }
 
+/// Generates a vector of linearly spaced N dimensional points over an N+1 
+/// dimensional hypercube from a resolution.
+/// 
+/// Includes both N dimensional endpoints of the hypercube and will always generate at least 2 points.
+/// 
+/// * `a` - Start of the interval
+/// * `b` - End of the interval
+/// * `res` - Generates `res + 1` points
 pub fn n_vec_from_res<const N: usize>(a: &[f64; N], b: &[f64; N], res: usize) -> Vec<[f64; N]> {
     n_linspace(a, b, res + 1)
 }
