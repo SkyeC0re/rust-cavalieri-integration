@@ -201,6 +201,16 @@ pub fn gauss_kronrod_quadrature_2d(
     Err(IntegError::ConvergenceError)
 }
 
+/// A globally adaptive two dimensional 10-21 Gauss Kronrod integration routine
+/// over a triangle.
+///
+/// Returns the integration value and estimated error of the integration.
+///
+/// * `f` - The function to integrate
+/// * `triangle` - The triangular region over which to integrate `f`
+/// * `tol` - The maximum estimated error allowed
+/// * `max_iter` - The maximum amount of adaptive Gauss-Kronrod integration
+///     iterations allowed for the inner and outer integrals
 pub fn gauss_kronrod_quadrature_triangle(
     f: impl Fn([f64; 2]) -> f64,
     triag: [[f64; 2]; 3],
@@ -221,6 +231,17 @@ pub fn gauss_kronrod_quadrature_triangle(
     gauss_kronrod_quadrature_2d(f, 0f64, 1f64, |u1| [0f64, 1f64 - u1], tol, max_iter)
 }
 
+/// Executes a Gaussian quadrature computation over an interval given a symmetric quadrature rule.
+///
+/// Computes the quadrature at both the positve and negative node positions (except for the first node if its 
+/// position is `0.0`), with the supplied weights.
+///
+/// * `f` - The function to compute the quadrature rule for
+/// * `a` - The start of the interval
+/// * `b` - The end of the interval
+/// * `rule` - The symmetric quadrature rule to apply. Each two element tuple expects the form:
+///     `(<node_position>, <node_weight>)`. The rule is expected to be normalized for the interval
+///     `[-1, 1]`.
 pub fn symmetric_gauss_quadrature(
     f: impl Fn(f64) -> f64,
     a: f64,
@@ -231,6 +252,15 @@ pub fn symmetric_gauss_quadrature(
         * unit_symmetric_gauss_quadrature(|x| f(x * (b - a) / 2f64 + (a + b) / 2f64), rule)
 }
 
+/// Executes a Gaussian quadrature computation over the interval `[-1, 1]` given a symmetric quadrature rule.
+///
+/// Computes the quadrature at both the positve and negative node positions (except for the first node if its 
+/// position is `0.0`), with the supplied weights.
+///
+/// * `f` - The function to compute the quadrature rule for
+/// * `rule` - The symmetric quadrature rule to apply. Each two element tuple expects the form:
+///     `(<node_position>, <node_weight>)`. The rule is expected to be normalized for the interval
+///     `[-1, 1]`.
 pub fn unit_symmetric_gauss_quadrature(f: impl Fn(f64) -> f64, rule: &[(f64, f64)]) -> f64 {
     let mut s = 0f64;
     if rule.len() == 0 {
@@ -248,6 +278,20 @@ pub fn unit_symmetric_gauss_quadrature(f: impl Fn(f64) -> f64, rule: &[(f64, f64
     s
 }
 
+/// Helper function for `gauss_kronrod_quadrature_2d`.
+///
+/// Computes the outer integral using a symmetric quadrature rule, whilst using the globally
+/// adaptive 10-21 Gauss-Kronrod routine for computing the inner integral.
+///
+/// * `f` - The function to integrate
+/// * `a` - The outer integral's lower integration bound
+/// * `b` - The outer integral's upper integration bound
+/// * `inner_ab_fn` - A function which specifies the inner integral
+///     lower and upper bounds in terms of the outer integral's bounds
+/// * `tol` - The maximum estimated error allowed for the inner integrals
+/// * `max_iter` - The maximum amount of adaptive Gauss-Kronrod integration
+///     iterations allowed for the inner integrals
+/// * `rule` - The `[-1, 1] normalized symmetric quadrature rule to use for the outer integral
 pub fn nested_gauss_kronrod_quadrature(
     f: impl Fn([f64; 2]) -> f64,
     a: f64,
