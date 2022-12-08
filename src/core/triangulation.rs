@@ -20,11 +20,13 @@ type Of64 = OFlt<f64>;
 /* Point and point type implementations */
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// Represents point types.
 pub enum PType {
     Start,
     End,
     Bend,
 }
+
 impl PType {
     pub fn from_triplet(p: Pt, p1: Pt, p2: Pt) -> Result<PType, TriangulationError> {
         if p == p1 || p == p2 {
@@ -40,20 +42,26 @@ impl PType {
 }
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Clone, Copy, Debug)]
+/// A 2-dimensional point ordered point.
 pub struct Pt([OFlt<f64>; 2]);
 
 impl Pt {
+    /// Constructs a new point.
     pub fn new(x: impl Into<Of64>, y: impl Into<Of64>) -> Self {
         Self([x.into(), y.into()])
     }
 
+    /// The x-value of the point.
     pub fn x(self) -> OFlt<f64> {
         self.0[0]
     }
+
+    /// The y-vlaue of the point.
     pub fn y(self) -> OFlt<f64> {
         self.0[1]
     }
 
+    /// Gives the gradient between this point and another.
     pub fn grad(self, other: Pt) -> OFlt<f64> {
         let diff_x = other.x() - self.x();
         let diff_y = other.y() - self.y();
@@ -83,6 +91,7 @@ impl Into<[f64; 2]> for Pt {
     }
 }
 
+/// Extrapolates a the y-value at a point `x` on the line defined by two points. 
 pub fn y_extrap(p1: Pt, p2: Pt, x: OFlt<f64>, right: bool) -> OFlt<f64> {
     let (p1, p2) = if p1 > p2 { (p2, p1) } else { (p1, p2) };
 
@@ -103,6 +112,7 @@ pub fn y_extrap(p1: Pt, p2: Pt, x: OFlt<f64>, right: bool) -> OFlt<f64> {
 /* Triangle implementation */
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+/// A traingle in $\mathbb{R}^2$.
 pub struct Triag([Pt; 3]);
 
 impl Triag {
