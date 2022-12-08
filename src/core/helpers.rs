@@ -9,8 +9,13 @@ pub enum Sign {
 
 /// A trait for determining the sign of a numeric type.
 pub trait Signed: From<Sign> {
+    /// The sign of the numeric type.
     fn sign(&self) -> Sign;
 
+    /// A number of the numeric type representing the numeric type's sign.
+    /// 
+    /// Should be the multiplicative identity element for `POS`, its additive inverse of the
+    /// aforementioned for `NEG` and the additive identity element for `ZERO`.
     fn sign_val(&self) -> Self {
         Self::from(self.sign())
     }
@@ -42,6 +47,14 @@ impl Signed for f64 {
     }
 }
 
+/// Generates a vector of linearly spaced N dimensional points over an N+1 
+/// dimensional hypercube from a resolution.
+/// 
+/// Includes both N dimensional endpoints of the hypercube and will always generate at least 2 points.
+/// 
+/// * `a` - Start of the interval
+/// * `b` - End of the interval
+/// * `length` - The amount of points to generate
 pub fn n_linspace<const N: usize>(a: &[f64; N], b: &[f64; N], mut length: usize) -> Vec<[f64; N]> {
     if length < 2 {
         length = 2
