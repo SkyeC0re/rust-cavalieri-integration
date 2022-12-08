@@ -1,6 +1,8 @@
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd)]
+/// A type for representing function values and derivatives for use
+/// in forward mode Automatic Differentiation.
 pub struct AD(pub f64, pub f64);
 
 pub const ONE: AD = AD(1f64, 0f64);
@@ -140,15 +142,19 @@ impl AD {
     }
 }
 
-/// A trait for representing differentiable 1-dimensional functions
+/// A trait for representing differentiable 1-dimensional functions.
 pub trait Differentiable1D {
+    /// The function value at `x`.
     fn f(&self, x: f64) -> f64;
+    /// The derivate at `x`.
     fn df(&self, x: f64) -> f64;
 
+    /// The function value and derivative at `x`.
     fn fdf(&self, x: f64) -> (f64, f64) {
         (self.f(x), self.df(x))
     }
 
+    /// Function composition given the value and derivate of some inner function.
     fn composition(&self, gdg: (f64, f64)) -> (f64, f64) {
         let mut fdf = self.fdf(gdg.0);
         fdf.1 *= gdg.1;
@@ -177,6 +183,9 @@ impl<F: Fn(AD) -> AD> Differentiable1D for F {
 
 /// Computes the absolute value of the Jacobian determinant for a differentiable
 /// function $ f : S \subset \mathbb{R}^2 \to \mathbb{R}^2 $.
+/// 
+/// * `g` - The differentiable function
+/// * `x` - The point at which to evalutate the determinant.
 pub fn abs_jacobian_det(g: impl Fn([AD; 2]) -> [AD; 2], x: [f64; 2]) -> f64 {
     let c1 = g([AD(x[0], 1f64), AD(x[1], 0f64)]);
     let c2 = g([AD(x[0], 0f64), AD(x[1], 1f64)]);
