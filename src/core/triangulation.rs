@@ -91,7 +91,7 @@ impl Into<[f64; 2]> for Pt {
     }
 }
 
-/// Extrapolates a the y-value at a point `x` on the line defined by two points. 
+/// Extrapolates a the y-value at a point `x` on the line defined by two points.
 pub fn y_extrap(p1: Pt, p2: Pt, x: OFlt<f64>, right: bool) -> OFlt<f64> {
     let (p1, p2) = if p1 > p2 { (p2, p1) } else { (p1, p2) };
 
@@ -148,12 +148,16 @@ impl Display for Triag {
 }
 
 #[derive(Clone, PartialEq, Eq)]
+/// A type for representing a polygon\'s points\' direction.
+///
+/// Either clockwise, counter-clockwise or none.
 enum PSign {
     C,
     CC,
     None,
 }
 
+/// Computes the direction of a polygon\'s points.
 fn clockwise_sign(polygon: &[Pt]) -> PSign {
     if let Some((i_min, _)) = polygon
         .iter()
@@ -180,6 +184,7 @@ fn clockwise_sign(polygon: &[Pt]) -> PSign {
 /* Linked point implementation */
 
 #[derive(Clone)]
+/// A linked 2-dimensional point.
 struct LPt {
     pub p: Pt,
     pub prev: Option<Rc<RefCell<LPt>>>,
@@ -232,6 +237,8 @@ impl Display for LPt {
 /* Backchain implementation */
 
 #[derive(Clone, PartialEq, Eq)]
+/// The back-chain which contains points behind the sweep line for an in-interval that
+/// is yet to be triangulated.
 struct BackChain {
     pub rm: Rc<RefCell<LPt>>,
     pub head: Rc<RefCell<LPt>>,
@@ -248,6 +255,7 @@ impl BackChain {
         }
     }
 
+    /// Split the chain at its rightmost point and connects `p` to both pieces of the chain.
     pub fn split(&mut self, p: Pt) -> (Self, Self) {
         // New bottom chain with new rightmost point `p`.
         let mut b_chain = Self::new(p);
@@ -280,6 +288,7 @@ impl BackChain {
         (b_chain, t_chain)
     }
 
+    /// Merge two chains at a common point `p`.
     pub fn merge(b_chain: &Self, t_chain: &Self, p: Pt) -> Self {
         let mut merged = Self::new(p);
 
@@ -296,6 +305,7 @@ impl BackChain {
         merged
     }
 
+    /// Append a new point to either the head or tail of the chain.
     pub fn append(&mut self, p: Pt, to_tail: bool) {
         let new_rm = LPt::new(p);
         self.rm = new_rm.clone();
@@ -310,6 +320,11 @@ impl BackChain {
         }
     }
 
+    /// Given a node in the chain, triangulates either forward or backwards from that point.
+    ///
+    /// * `from_node` - The node from which to triangulate
+    /// * `backward` - Whether triangulation should occur towards the head (`true`) or towards the tail (`false`)
+    /// * `triag_list` - The mutable list of existing triangles to which the function will append
     fn node_triangulate(from_node: &Rc<RefCell<LPt>>, backward: bool, triag_list: &mut Vec<Triag>) {
         loop {
             let triplet = if backward {
@@ -352,6 +367,10 @@ impl BackChain {
         }
     }
 
+    /// Triangulate either backwards from the tail of the chain or forwards from the head.
+    ///
+    /// * `from_tail` - Whether to triangulate backwards from the tail or forwards from the head
+    /// * `triag_list` - The mutable list of existing triangles to which the function will append
     pub fn back_triangulate(&mut self, from_tail: bool, triag_list: &mut Vec<Triag>) {
         let node = match from_tail {
             true => &mut self.tail,
@@ -361,6 +380,9 @@ impl BackChain {
         Self::node_triangulate(node, from_tail, triag_list);
     }
 
+    /// Triangulate both backwards and forwards from a chain\'s rightmost point.
+    ///
+    /// * `triag_list` - The mutable list of existing triangles to which the function will append
     pub fn rm_split_triangulate(&mut self, triag_list: &mut Vec<Triag>) {
         Self::node_triangulate(&self.rm, true, triag_list);
         Self::node_triangulate(&self.rm, false, triag_list);
@@ -369,6 +391,8 @@ impl BackChain {
 
 /* Y-structure implementation */
 
+/// Stores information regarding the sweep line, active edges and the next points to
+/// handle.
 struct YStruct {
     x: Rc<RefCell<Of64>>,
     active_edges: BTreeSet<Rc<RefCell<YEdge>>>,
@@ -378,6 +402,7 @@ struct YStruct {
 /* Active Y-structure edge implementation */
 
 #[derive(PartialEq, Eq)]
+/// An active edge in `YStruct`.
 struct YEdge {
     pub rpt: Pt,
     pub backchain: Rc<RefCell<BackChain>>,
@@ -404,6 +429,11 @@ impl YEdge {
         }
     }
 
+    /// Determines the y-position of a point on the active edge.
+    ///
+    /// * `x` - The point in x at which to compute the position in y
+    /// * `right` - Only affects vertical edges. If `true` gives the top point\'s
+    ///     y-position of the vertical edge, otherwise gives the bottom point\'s y-position
     pub fn y_at(&self, x: OFlt<f64>, right: bool) -> OFlt<f64> {
         let lpt = if self.bof_in_interval {
             self.backchain.borrow().head.borrow().p
@@ -414,6 +444,9 @@ impl YEdge {
         y_extrap(lpt, self.rpt, x, right)
     }
 
+    /// Determines the gradient of the active edge.
+    ///
+    /// * `x` - The point in x at which to compute gradient
     pub fn grad(&self) -> OFlt<f64> {
         let lpt = if self.bof_in_interval {
             self.backchain.borrow().head.borrow().p
@@ -507,10 +540,6 @@ impl Display for YEdge {
         )
     }
 }
-
-// fn opt_rc_cell_is_eq<T: Eq>(a: Option<Rc<RefCell<T>>>, b: Option<Rc<RefCell<T>>>, default: bool) -> bool {
-
-// }
 
 fn handle_next(
     y_struct: &mut YStruct,
