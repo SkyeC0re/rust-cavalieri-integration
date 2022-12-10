@@ -7,6 +7,18 @@ use crate::{
     core::parsing::{compile_expression, compile_interval_list, DefaultContext},
 };
 
+/// Generates a 2-dimensional Cavalieri integral visualization from text input.
+/// 
+/// * `f_expr` - The integrand. Must be written in terms of x.
+/// * `c_expr` - The c-curve associated with the integral. Must be written in terms of y.
+/// * `intervals` - The set of intervals over which to integrate
+/// * `compute_integ` - Whether or not to compute the integral value
+/// * `x_res` - The resolution of the x-dimension
+/// * `y_res` - The resolution of the y-dimension
+/// * `interm_cs` - The amount of intermediate c-curves to show
+/// * `max_rf_iters` - The maximum number of root finding iterations allowed
+/// * `max_int_iters` - The maximum number of integration iterations allowed
+/// * `tol` - The tolerance allowed when computing the integral value
 pub fn display_cav2d(
     f_expr: String,
     c_expr: String,
@@ -45,6 +57,19 @@ pub fn display_cav2d(
     )?)
 }
 
+/// Generates a 2-dimensional Cavalieri integral representation of a Riemann-Stieltjes
+/// integral from text input.
+/// 
+/// * `f_expr` - The integrand. Must be written in terms of x.
+/// * `g_expr` - The integrator. Must be written in terms of x.
+/// * `intervals` - The set of intervals over which to integrate
+/// * `compute_integ` - Whether or not to compute the integral value
+/// * `x_res` - The resolution of the x-dimension
+/// * `y_res` - The resolution of the y-dimension
+/// * `interm_cs` - The amount of intermediate c-curves to show
+/// * `max_rf_iters` - The maximum number of root finding iterations allowed
+/// * `max_int_iters` - The maximum number of integration iterations allowed
+/// * `tol` - The tolerance allowed when computing the integral value
 pub fn display_cav2d_rs(
     f_expr: String,
     g_expr: String,
@@ -80,6 +105,21 @@ pub fn display_cav2d_rs(
     )?)
 }
 
+/// Generates a 3-dimensional Cavalieri integral visualization from text input.
+/// 
+/// * `f_expr` - The integrand. Must be written in terms of x.
+/// * `c1_expr` - The $c_1$ function governing the c-curve associated with the integral. 
+///     Must be written in terms of y.
+/// * `c2_expr` - The $c_2$ function governing the c-curve associated with the integral. 
+///     Must be written in terms of y.
+/// * `poygons_set` - A non-intersection, non-degenerate polygon set
+/// * `compute_integ` - Whether or not to compute the integral value
+/// * `radial_res` - The radial resolution of the top triangle meshes 
+/// * `x_res` - The resolution of the x-dimensions
+/// * `y_res` - The resolution of the y-dimension
+/// * `max_rf_iters` - The maximum number of root finding iterations allowed
+/// * `max_int_iters` - The maximum number of integration iterations allowed
+/// * `tol` - The tolerance allowed when computing the integral value
 pub fn display_cav3d(
     f_expr: String,
     c1_expr: String,

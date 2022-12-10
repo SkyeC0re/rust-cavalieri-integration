@@ -457,6 +457,14 @@ impl YEdge {
         lpt.grad(self.rpt)
     }
 
+    /// Determines the ordering of two active edges in terms of y at some x.
+    /// 
+    /// With respect to ordering, y-position takes precedence, followed
+    /// by the gradient of the two edges if their y-positions are equal at `x`.
+    /// 
+    /// * `other` - The other edge to compare to
+    /// * `x` - The x-coordinate at which to compare the two edges
+    /// * `right` - Passed through to `y_at` and `grad` 
     pub fn cmp_at(&self, other: &Self, x: OFlt<f64>, right: bool) -> Ordering {
         if !x.is_finite() {
             return Ordering::Equal;
@@ -466,6 +474,8 @@ impl YEdge {
             .then(self.grad().total_cmp(&other.grad()))
     }
 
+    /// Determines if an active edge will overlap its bottom partner before its right
+    /// point is reached.
     pub fn will_overlap_bot(&self) -> bool {
         if let Some(bp) = &self.b_partner {
             let bp = bp.borrow();
@@ -482,6 +492,8 @@ impl YEdge {
         }
     }
 
+    /// Determines if an active edge will overlap its top partner before its right
+    /// point is reached.
     pub fn will_overlap_top(&self) -> bool {
         if let Some(tp) = &self.t_partner {
             let tp = tp.borrow();
@@ -541,6 +553,10 @@ impl Display for YEdge {
     }
 }
 
+/// Handles the next point in the Y-structure.
+/// 
+/// * `y_struct` - The Y-structure to pop the next point from
+/// * `triag_list` - The mutable triangulation list
 fn handle_next(
     y_struct: &mut YStruct,
     triag_list: &mut Vec<Triag>,
@@ -772,6 +788,9 @@ fn handle_next(
     Ok(())
 }
 
+/// Triangulates a polygon set and produces a list of triangles.
+/// 
+/// * `poly_set` - A non-intersecting, non-degenerate set of polygons
 pub fn triangulate_polygon_set(
     poly_set: Vec<Vec<impl Into<Pt>>>,
 ) -> Result<Vec<Triag>, TriangulationError> {
