@@ -261,6 +261,10 @@ pub enum ContextElement<'a, T: ArithParsable> {
     UOp(&'a dyn Fn(T) -> T),
 }
 
+/// Creates an executable expression from text input.
+/// 
+/// * `expr` - The expression
+/// * `context` - The expressaion context
 pub fn compile_expression<'a, const I: usize, T: ArithParsable>(
     expr: &str,
     context: impl AsRef<HashMap<String, ContextElement<'a, T>>>,
@@ -339,6 +343,10 @@ fn parse_list_of_elem<'a, T>(
     Ok((expr, elems))
 }
 
+/// Creates an interval set from text input.
+/// 
+/// * `expr` - The interval set expression
+/// * `context` - The expression context
 pub fn compile_interval_list<'a, 'b>(
     expr: &'a str,
     context: impl AsRef<HashMap<String, ContextElement<'b, f64>>>,
@@ -356,6 +364,10 @@ pub fn compile_interval_list<'a, 'b>(
     Ok(list)
 }
 
+/// Creates a polygon set from text input.
+/// 
+/// * `expr` - The polygon set expression
+/// * `context` - The expression context
 pub fn compile_polygon_set<'a, 'b>(
     expr: &'a str,
     context: impl AsRef<HashMap<String, ContextElement<'b, f64>>>,

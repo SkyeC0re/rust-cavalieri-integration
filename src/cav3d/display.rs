@@ -103,7 +103,15 @@ impl CavDisplay3D {
     }
 }
 
-#[pyclass]
+/// Configuration settings for the 2-dimensional Cavalieri integral visualization. 
+/// 
+/// * `compute_integ` - Whether or not to compute the integral value
+/// * `radial_res` - The radial resolution of the top triangle meshes 
+/// * `x_res` - The resolution of the x-dimensions
+/// * `y_res` - The resolution of the y-dimension
+/// * `max_rf_iters` - The maximum number of root finding iterations allowed
+/// * `max_int_iters` - The maximum number of integration iterations allowed
+/// * `tol` - The tolerance allowed when computing the integral value
 pub struct DisplayConfig3D {
     pub compute_integ: bool,
     pub radial_res: usize,
@@ -113,6 +121,15 @@ pub struct DisplayConfig3D {
     pub tol: f64,
 }
 
+/// Generates a side mesh for a triangular region.
+/// 
+/// Produces a 2-dimensional grid representing a surface in $\mathbb{R}^3$.
+/// 
+/// * `f` - The integrand of the Cavalieri integral
+/// * `c` - The c-curve of the Cavalieri integral
+/// * `xv` - Points on the interval $[a_1, b_1] \times [a_2, b_2]$, with the first and last points being treated 
+///     as $\{a_1, a_2\}$ and $\{b_1, b_2 \}$ respectively
+/// * `yrv` - The ratios $0 \leq r \leq 1$ of $y = f(\mathbf{x^*})$ to at which to sample the mesh
 pub fn gen_display_curtain(
     f: impl Fn([f64; 2]) -> f64,
     c: impl Fn(f64) -> [f64; 2],

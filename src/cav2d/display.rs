@@ -34,6 +34,15 @@ pub struct CavDisplay2D {
     pub integ_value: Option<(f64, f64)>,
 }
 
+/// Configuration settings for the 2-dimensional Cavalieri integral visualization.
+///
+/// * `compute_integ` - Whether or not to compute the integral value
+/// * `x_res` - The resolution of the x-dimension
+/// * `y_res` - The resolution of the y-dimension
+/// * `interm_cs` - The amount of intermediate c-curves to show
+/// * `max_rf_iters` - The maximum number of root finding iterations allowed
+/// * `max_int_iters` - The maximum number of integration iterations allowed
+/// * `tol` - The tolerance allowed when computing the integral value
 pub struct DisplayConfig2D {
     pub compute_integ: bool,
     pub x_res: usize,
@@ -63,6 +72,12 @@ impl Convergency<f64> for XConvergency {
     }
 }
 
+/// Computes a visualization for the 2-dimensional Cavalieri integral.
+/// 
+/// * `f` - The differentiable integrand
+/// * `c` - The differentiable c-curve
+/// * `intervals` - The intervals over which to integrate
+/// * `cfg` - The configuration settings
 pub fn gen_display_cav(
     f: &dyn Differentiable1D,
     c: &dyn Differentiable1D,
@@ -143,6 +158,12 @@ pub fn gen_display_cav(
     Ok(displays)
 }
 
+/// Computes a 2-dimensional Cavalieri integral representation for a Riemann-Stieltjes integral.
+/// 
+/// * `f` - The differentiable integrand
+/// * `g` - The differentiable integrator
+/// * `intervals` - The intervals over which to integrate
+/// * `cfg` - The configuration settings
 pub fn gen_display_rs(
     f: &dyn Differentiable1D,
     g: &dyn Differentiable1D,
@@ -284,6 +305,12 @@ pub fn gen_func_interval(f: impl Fn(AD) -> AD, xv: &[f64]) -> Vec<f64> {
     yv
 }
 
+/// Determines whether or not a differentiable function\'s derivative changes sign at
+/// a point x.
+/// 
+/// * `f` - The function to evaluate
+/// * `x` - The point at which to evalutate
+/// * `tol` - Points are sampled at `x - tol` and `x + tol` to determine monotonicity
 pub fn is_monotonic_saddle(f: &dyn Differentiable1D, x: f64, tol: f64) -> bool {
     let x1 = f.fdf(x - tol);
     let x2 = f.fdf(x + tol);
@@ -295,6 +322,12 @@ pub fn is_monotonic_saddle(f: &dyn Differentiable1D, x: f64, tol: f64) -> bool {
     }
 }
 
+/// Partitions an interval into strictly monotone sub-intervals with respect to a differentiable function.
+/// 
+/// * `f` - A differentiable function
+/// * `xv` - Points on the interval $[a, b]$, with the first and last points being treated as $a$ and $b$ respectively
+/// * `tol` - The tolerance threshold to use when computing a root of the function derivative
+/// * `max_rf_iters` - The maximum number of root finding iterations allowed
 pub fn split_strictly_monotone(
     f: &dyn Differentiable1D,
     xv: &[f64],
@@ -346,6 +379,13 @@ pub fn split_strictly_monotone(
     Ok(roots)
 }
 
+// Partitions an interval into translational sub-intervals with respect to the integrand $f$ and integrator $g$.
+/// 
+/// * `f` - A differentiable integrand
+/// * `g` - A differentiable integrator
+/// * `xv` - Points on the interval $[a, b]$, with the first and last points being treated as $a$ and $b$ respectively
+/// * `tol` - The tolerance threshold to use when computing a root of the function derivative
+/// * `max_rf_iters` - The maximum number of root finding iterations allowed
 pub fn split_translational(
     f: &dyn Differentiable1D,
     g: &dyn Differentiable1D,
