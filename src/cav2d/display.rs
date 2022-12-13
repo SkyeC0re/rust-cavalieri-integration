@@ -15,6 +15,17 @@ use roots::{find_root_brent, Convergency};
 const C_GRAD_MAX: f64 = 10f64;
 
 #[pyclass]
+/// 2-dimensional Cavalieri integral visualization over an interval.
+/// 
+/// * `a` - Start of the interval
+/// * `b` - End of the interval
+/// * `fv` - Values of the integrand across the interval
+/// * `xv` - The x-values across the interval
+/// * `cvs` - A tuple containing the values of intermediate c-curves across
+///     the interval and the index `i` at which they connect to `(xv[i], fv[i])`
+/// * `gv` - Values of the integrator across the interval
+/// * `dgv` - Derivative values of the integrator across the interval
+/// * `integ_value` - The integration value and estimated error
 pub struct CavDisplay2D {
     #[pyo3(get)]
     pub a: f64,

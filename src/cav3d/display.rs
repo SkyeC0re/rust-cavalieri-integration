@@ -11,6 +11,14 @@ use crate::{
 };
 
 #[pyclass]
+/// A 3-dimensional Cavalieri integral visualization over a triangular region.
+/// 
+/// * `triag` - Vertices of the triangular $S$ region
+/// * `curtains` - The three side curtains of the Cavalieri integral over
+///     the triangle
+/// * `top_mesh` - A mesh for $S$
+/// * `bot_mesh` - A mesh for $R$
+/// * `integ_value` - The integration value and estimated error
 pub struct CavDisplay3D {
     #[pyo3(get)]
     pub triag: [[f64; 2]; 3],
@@ -25,6 +33,13 @@ pub struct CavDisplay3D {
 }
 
 impl CavDisplay3D {
+    /// Generates a new 3-dimensional Cavalieri integral visualization over a triangular region.
+    /// 
+    /// * `f` - The integrand
+    /// * `c` - The c-curve
+    /// * `triag` - The triangle over which to create the display
+    /// * `integ_value` - The integration value and estimated error to pass through
+    /// * `cfg` - The configuration settings
     fn new(
         f: impl Fn([f64; 2]) -> f64,
         c: impl Fn(f64) -> [f64; 2],
@@ -103,7 +118,7 @@ impl CavDisplay3D {
     }
 }
 
-/// Configuration settings for the 2-dimensional Cavalieri integral visualization. 
+/// Configuration settings for the 3-dimensional Cavalieri integral visualization. 
 /// 
 /// * `compute_integ` - Whether or not to compute the integral value
 /// * `radial_res` - The radial resolution of the top triangle meshes 
@@ -168,6 +183,12 @@ pub fn gen_display_curtain(
         .collect()
 }
 
+/// Generates a 3-dimensional Cavalieri visualization.
+/// 
+/// * `f` - The integrand of the Cavalieri integral
+/// * `c` - The c-curve of the Cavalieri integral
+/// * `poly_set` - A set of non-intersecting, non-degenerate polygons
+/// * `cfg` - The configuration settings
 pub fn gen_display_cav(
     f: impl Fn([AD; 2]) -> AD,
     c: impl Fn(AD) -> [AD; 2],
